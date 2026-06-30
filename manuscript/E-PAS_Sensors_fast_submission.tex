@@ -1039,17 +1039,16 @@ For $p\in\{1,\dots,5\}$, the steady-state MSE is lowest at $p\in\{3,4\}$ (about 
 
 Relative to the always-communicating periodic baseline, \EPAS{} reduces model-based energy consumption to approximately $0.09\times$ (a saving of roughly $91\%$). This ratio is derived from the simulation observations in Section~VI rather than rigorously deduced from Proposition~\ref{thm:energy} alone, and it uses the per-step full-transmission periodic baseline as the denominator. It should not be interpreted as a hardware-measured energy-saving ratio. If a city-scale deployment scenario is assumed and a carbon emission factor of 0.5~kg~CO$_2$/kWh is adopted, this energy-consumption ratio can yield a discussion-oriented scenario estimate of annual emission reductions; the specific tonnage depends on the deployment scale, communication load, and operating duration, and we do not directly extrapolate the 500-node simulation into an engineering conclusion. For larger-scale deployments (e.g., industrial IoT), a separate assessment in conjunction with specific hardware power-consumption models is still required.
 
-%% (figure)
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\textwidth]{figures_polished/trigger_rate_validation.pdf}
-\caption{Measured per-node trigger rate vs. the timeout floor $1/K_{\max}\!=\!0.05$ and the quasi-stationary envelope, across three benchmarks (ER ideal, ER privacy, WS privacy). The measured rate exceeds the timeout floor in every case, i.e. the state-deviation trigger---not the timeout safety net---drives communication.}
-\label{fig:trigger}
-\end{figure}
-
 \subsection{Trigger-Rate Validation (Comparison with Proposition~\ref{thm:trigger})}
 
 In this work, the timeout $K_{\max}$ is set to $20$ (i.e., the timeout floor $1/K_{\max}=0.05$, strictly below the target trigger rate of $0.1$), so that it acts as a rare \textbf{safety net} rather than the primary triggering mechanism; in this way, the state-deviation trigger must actively operate to maintain the target rate, thereby genuinely fulfilling the role of ``adaptive event-triggered'' communication. The reconstruction experiments corroborate this: \EPAS{} attains a measured average trigger rate of approximately $0.07$--$0.10$ (varying with topology), markedly above the timeout floor of $1/K_{\max}=0.05$, with the excess contributed precisely by the state-deviation trigger; the average inter-trigger interval is approximately $10$--$16$ steps, \textbf{far smaller than the safety net $K_{\max}=20$}, indicating that the vast majority of releases are driven by the deviation trigger before the timeout is reached. Correspondingly, the adaptive threshold $\theta$ stabilizes at a low value (approximately $0.002$--$0.014$) and self-adjusts according to the topology (lower on dense Erd\H{o}s--R\'enyi graphs and higher on clustered Watts--Strogatz graphs) to maintain the target trigger rate, rather than saturating at its upper bound. It should be noted that the quasi-stationary envelope $1/K_{\max}+\Mstep^2/\theta^*$ in Proposition~\ref{thm:trigger} remains an approximate characterization rather than a strict upper bound. Fig.~\ref{fig:trigger} compares the measured trigger rate against the timeout floor and this envelope.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{figures_polished/trigger_rate_validation.pdf}
+\caption{Measured per-node trigger rate vs. the timeout floor $1/K_{\max}\!=\!0.05$ and the quasi-stationary envelope, across three benchmarks (ER ideal, ER privacy, WS privacy). The measured rate exceeds the timeout floor in every case, i.e. the state-deviation trigger---not the timeout safety net---drives communication.}
+\label{fig:trigger}
+\end{figure}
 
 \subsection{AR Residuals and the Silent Horizon (Comparison with Assumption~\ref{ass:lipschitz})}
 
