@@ -1,0 +1,1239 @@
+
+\documentclass[10pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.82in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{algorithm,algorithmic}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{bm}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds, patterns}
+
+% Free-format submission version prepared for Sensors.
+% The manuscript keeps standard article-class LaTeX for fast initial submission.
+\captionsetup{font=small,labelfont=bf}
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{12pt}
+\makeatother
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}[section]
+\renewcommand{\thetheorem}{\arabic{section}.\arabic{theorem}}
+\newtheorem{lemma}{Lemma}[section]
+\renewcommand{\thelemma}{\arabic{section}.\arabic{lemma}}
+\newtheorem{budgetlemma}[theorem]{Lemma}
+\newtheorem{assumption}{Assumption}[section]
+\renewcommand{\theassumption}{\arabic{section}.\arabic{assumption}}
+\newtheorem{definition}{Definition}[section]
+\renewcommand{\thedefinition}{\arabic{section}.\arabic{definition}}
+\newtheorem{corollary}{Corollary}[section]
+\renewcommand{\thecorollary}{\arabic{section}.\arabic{corollary}}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{remark}{Remark}[section]
+\renewcommand{\theremark}{\arabic{section}.\arabic{remark}}
+
+% Macros
+\newcommand{\EPAS}{E-PAS}
+\newcommand{\TGM}{TGM}
+\newcommand{\AR}{AR}
+\newcommand{\ACG}{ACG}
+\newcommand{\AET}{AET}
+\newcommand{\ECP}{ECP}
+\newcommand{\Lbar}{\bar{L}}
+\newcommand{\kmax}{\kappa_{\max}}
+\newcommand{\kmin}{\kappa_{\min}}
+\newcommand{\ploss}{p_{\text{loss}}}
+\newcommand{\lN}{\lambda_N(\Lbar)}
+\newcommand{\ltwo}{\lambda_2(\Lbar)}
+\newcommand{\sbar}{\bar{\sigma}}
+\newcommand{\nubase}{\nu_{\text{base}}}
+\newcommand{\numax}{\nu(K_{\max})}
+\newcommand{\Psum}{\Phi_{\text{sum}}}
+\newcommand{\dmax}{d_{\max}}
+\newcommand{\amax}{a_{\max}}
+\newcommand{\gdeg}{d_{\mathcal{G}}}
+\newcommand{\xinet}{\Xi_{\mathrm{net}}}
+\newcommand{\egl}{\varepsilon_{\text{global}}}
+\newcommand{\eper}{\varepsilon_{\text{per}}}
+\newcommand{\fmax}{f_{\max}}
+\newcommand{\Mstep}{M_{\text{step}}}
+\newcommand{\Tstop}{T_{\text{stop}}}
+\DeclareMathOperator{\clip}{clip}
+\DeclareMathOperator{\Var}{Var}
+
+
+\begin{document}
+
+\title{E-PAS: A Privacy-Budget-Aware and Energy-Efficient\\ State Synchronization Framework for Distributed IoT Sensor Networks}
+
+\author{Gang Liu$^{1}$ and Xin Zhang$^{2,*}$\\
+\small $^{1}$ School of Electronic and Electrical Engineering, Shanghai University of Engineering Science, Shanghai 201620, China\\
+\small $^{2}$ School of Mathematics and Physics, Suqian University, Suqian, China\\
+\small $^{*}$ Corresponding author: Xin Zhang, email to be added before submission}
+\date{}
+\maketitle
+
+\noindent\textbf{Manuscript type:} Article
+
+
+\begin{abstract}
+Distributed IoT sensor networks must synchronize node states under lossy links, delay, limited energy, and privacy-budget constraints. This paper proposes \EPAS{}, a privacy-budget-aware and energy-efficient state synchronization framework that couples bounded truncated-Gaussian value-channel calibration, autoregressive prediction during silent intervals, adaptive consensus-gain tuning, and adaptive event-triggered communication. Unlike approaches that treat communication reduction and privacy noise independently, \EPAS{} exploits sparse releases under a fixed global target budget so that each genuine release can use a larger event-level budget and lower value-channel noise. The analysis provides a sufficient mean-square convergence bound to an error floor, a settling-time bound, a quasi-stationary trigger-rate characterization, and a uniqueness result for the implicit truncated-Gaussian variance equation. Simulations on Erd\H{o}s--R\'enyi and Watts--Strogatz topologies with up to $500$ nodes and $50$ paired repetitions show that, under $\egl=1.0$, \EPAS{} reaches a steady-state MSE of $1.43\times10^{-4}$ on the $N=100$ benchmark, about $14\times$ lower than the strongest baseline. It also reduces communication by about $92\%$, lowers model-based energy consumption to about $0.09\times$ of the always-on baseline, and remains the most accurate method under $40\%$ packet loss. These results are fixed-budget, lossy-channel simulation findings, not certified sequence-level differential privacy or hardware-measured energy results.
+\end{abstract}
+
+
+\noindent\textbf{Keywords:} IoT sensor networks; distributed sensor networks; privacy-budget calibration; truncated-Gaussian noise; event-triggered communication; state synchronization; energy efficiency.
+
+
+
+
+\section{Introduction}
+
+\subsection{Background and motivation}
+
+Distributed sensor networks are widely used in industrial monitoring, smart-city sensing, environmental surveillance, and edge intelligence. In these systems, each node usually observes only local information but must coordinate with neighbouring nodes to maintain a consistent network state. This synchronization task is challenged by packet loss, communication delay, limited node energy, and privacy requirements. When privacy noise is added to shared values, a smaller event-level budget generally increases the observation noise and degrades consensus accuracy. When communication is reduced to save energy, the controller receives fewer fresh neighbour states and may rely on stale information. These two pressures are therefore coupled rather than independent.
+
+The key observation of this paper is that sparse but carefully regulated communication can improve the effective use of a fixed total target budget. If all methods are evaluated under the same global target budget, a method that releases fewer messages can allocate a larger target budget to each genuine release. This can reduce the value-channel noise per release, improve the quality of neighbour-state prediction during silence, and further support sparse triggering. This feedback motivates the proposed \EPAS{} framework.
+
+\subsection{Gap in existing work}
+
+Differentially private consensus and event-triggered consensus have both been studied extensively, but most existing methods emphasize either privacy protection or communication reduction. Fewer studies explicitly evaluate the operating regime in which a fixed total privacy budget, random packet loss, silence-period prediction, and model-based energy consumption interact in one closed-loop synchronization design. For distributed sensor-network deployment, this gap is practically important: a method should make clear which claims are theoretical guarantees, which are simulation observations, and which require hardware validation.
+
+\subsection{Main contributions}
+
+The main contributions are summarized as follows.
+
+\begin{enumerate}
+  \item \textbf{A privacy-budget-aware synchronization framework for distributed sensor networks}: \EPAS{} integrates the Truncated-Gaussian Mechanism (TGM), the Energy \& AR-prediction Co-process (ECP), Adaptive Consensus Gain (ACG), and Adaptive Event-Triggered communication (AET). The resulting sparse algorithmic form supports per-node $O(d+p^2)$ updates and explicitly couples communication sparsity with the effective event-level budget under a fixed total-budget constraint.
+  \item \textbf{A rate-regulated adaptive triggering strategy}: AET separates the target communication rate from the timeout lower bound. The state-deviation trigger regulates most releases, while the timeout condition prevents excessively long silent intervals.
+  \item \textbf{Supporting analysis under explicit scope}: We provide a sufficient mean-square convergence bound to an error floor, a settling-time bound, a quasi-stationary trigger-rate characterization, and a uniqueness result for the TGM implicit variance equation. The TGM part is positioned as bounded value-channel budget calibration with cumulative target-budget accounting, not as a full sequence-level privacy proof.
+  \item \textbf{Simulation-based validation under fixed-budget fairness}: Under two synthetic topologies, $N\leq500$, 50 paired repetitions for the main benchmarks, and 8 repeats for controlled scans, the results are reported with paired tests and effect sizes. The evaluation emphasizes the operating regime in which a fixed global target budget, lossy communication, and sparse triggering interact.
+  \item \textbf{Model-based energy discussion}: Relative to an always-on periodic baseline, \EPAS{} reduces the simulated relative energy to approximately $0.09$. This number is reported as a model-based observation; the carbon-emission discussion is illustrative rather than a measured deployment result.
+\end{enumerate}
+
+The remainder of this paper is organized as follows. Section~II reviews related work and positions \EPAS{} relative to consensus, privacy, and energy-efficient sensor-network studies. Section~III introduces the notation, preliminaries, and problem statement. Section~IV presents the proposed framework. Section~V gives the theoretical analysis, Section~VI reports the experiments, Section~VII discusses limitations, and Section~VIII concludes the paper with future directions.
+
+% ---------------------------------------------------------------------------
+
+\section{Related Work}
+
+\subsection{Distributed Consensus and Event-Triggered Control}
+
+Distributed consensus theory\cite{olfati2007,jadbabaie2003} provides the foundation for agreement over networked agents, and later work extends it to time-varying topologies, switching graphs, and lossy or delayed channels. Event-triggered control conserves bandwidth through state-deviation triggering mechanisms\cite{tabuada2007,heemels2012}, and event-triggered multi-agent consensus, including variants with intermittent communication and network uncertainty, has been introduced and surveyed in detail\cite{heemels2012intro,nowzari2019}. Recent studies further combine event-triggered communication with privacy-preserving consensus or adjustable inter-event-time design\cite{liang2023edge_noise,wang2023moving_average}, while IoT timer-synchronization work emphasizes the separate physical-layer need for coordinating distributed sensing clocks\cite{zhou2026timer_sync}. These studies establish the control and triggering foundations used here; however, they typically do not jointly address the coupling among a fixed privacy budget, random packet loss, silence-period prediction, and energy constraints.
+
+\subsection{Privacy-Budget Calibration and Bounded Noise Mechanisms}
+
+The standard Gaussian mechanism\cite{dwork2006,dwork2014} has unbounded support, which introduces additional difficulties in control analysis that requires an explicitly bounded operating range; its variance calibration and behavior in the low-privacy regime have been studied analytically in finer detail\cite{balle2018}, and bounded or truncated noise mechanisms have also been employed to handle output-range constraints\cite{chen2022bounded,fu2023truncated}. To this end, this paper considers a truncated-Gaussian calibration rule, so that the communication-layer noise is confined within finite bounds, and compensates for the normalization change induced by truncation through a correction factor. The focus is not to propose a new optimal privacy mechanism, but to embed bounded value-channel calibration into a distributed synchronization controller. On the other hand, different tasks often require privacy mechanisms matched to application constraints, such as geo-indistinguishability in location privacy\cite{andres2013}; the utility optimality of noise mechanisms must likewise be analyzed in conjunction with the specific loss function\cite{geng2016}. Recent IoT privacy surveys likewise stress that privacy mechanisms for bandwidth-limited and resource-constrained devices must be evaluated jointly with communication overhead, scalability, and system efficiency\cite{zaman2026iot_privacy}. Nozari et al.~\cite{nozari2017tac,nozari2017auto} provided privacy--accuracy trade-off analyses for locally private average consensus and related distributed optimization problems; the statistical minimax cost under local privacy demonstrates that privacy constraints incur a non-negligible loss of information\cite{duchi2013}. Huang et al.~\cite{huang2012} studied differentially private iterative consensus, Mo \& Murray~\cite{mo2017} proposed a privacy-preserving method based on state decomposition, and Le Ny \& Pappas~\cite{leny2014} introduced differential privacy into the filtering problem for dynamical systems.
+
+\subsection{Energy-Efficient Sensor Networks and Edge IoT}
+
+Energy-efficient operation is a central requirement in wireless sensor networks, where communication energy consumption directly affects system lifetime and deployment cost\cite{akyildiz2002}. Recent edge-IoT studies similarly emphasize that energy efficiency must be considered together with sensing, communication, and local computation in low-power systems\cite{katare2023approx_edge,mao2023green_edge,asiedu2024iot_energy}. Broader work on energy-aware computing and carbon accounting\cite{strubell2019,patterson2021} further motivates reporting model-based energy implications with explicit scope. This work therefore maps the communication-efficiency gains in distributed synchronization control to a discussion of model-based energy consumption, while avoiding hardware-level energy claims.
+
+\subsection{Position of This Work}
+
+Relative to consensus and event-triggered control studies, \EPAS{} treats communication sparsity, privacy-budget allocation, packet loss, and prediction during silence as a coupled closed-loop design problem. Relative to privacy-mechanism papers, it uses bounded-noise calibration as one component of a distributed control architecture rather than as a standalone privacy guarantee. Relative to edge-IoT energy-efficiency studies, it reports communication and model-based energy reductions within a fixed-budget synchronization benchmark rather than only discussing generic low-power operation.
+
+% ---------------------------------------------------------------------------
+\section{System Model and Problem Statement}
+
+Table~\ref{tab:notation} summarizes the main notation used in the analysis and experiments.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Main notation used in the analysis and experiments}
+\label{tab:notation}
+\begin{tabularx}{\textwidth}{@{}lXlX@{}}
+\toprule
+Symbol & Meaning & Symbol & Meaning \\
+\midrule
+$N$ & Number of network nodes & $\varepsilon$ & Generic privacy-budget level \\
+$\sigma_i(t)$ & Truncated-Gaussian noise scale of node $i$ & $B$ & Truncation bound of the bounded Gaussian noise \\
+$\rho$ & Budget-update or contraction-related scalar, depending on context & $\Gamma(K_{\max})$ & Aggregate steady-state error-floor term \\
+$\nu(k),\nu_0$ & AR prediction residual after $k$ silent steps and its baseline & $L(t),\Lbar$ & Instantaneous and expected graph Laplacian \\
+$\phi(\cdot)$ & Standard normal density & $\Phi(\cdot)$ & Standard normal cumulative distribution function \\
+$\Phi_{\mathrm{sum}}$ & Sum of absolute AR coefficients & $\lambda_2,\lambda_N$ & Algebraic connectivity and largest Laplacian eigenvalue of $\Lbar$ \\
+$\kappa_i(t)$ & Adaptive consensus gain of node $i$ & $K_{\max}$ & Maximum silent horizon before timeout triggering \\
+$\Mstep$ & Envelope of the trigger statistic & $L_x$ & One-step Lipschitz envelope of the true state \\
+$\dmax$ & Disturbance-magnitude bound & $\eta_{\max}$ & Channel-noise bound \\
+$\delta_{\max}$ & Maximum communication delay & $\amax$ & Edge-weight upper bound \\
+$\gdeg$ & Maximum or design-time graph degree bound & $R(\cdot)$ & Retained probability mass after truncation \\
+$\egl$ & Global target privacy-budget upper bound & $\varepsilon_i^{\mathrm{used}}(t)$ & Cumulative consumed target budget of node $i$ \\
+$\varepsilon_i^{\mathrm{tx}}(t)$ & Target budget charged to node $i$ at an actual release event & $z_i(t)$ & Release indicator, equal to $1$ when node $i$ broadcasts \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Graph-Theoretic Foundations}
+
+Consider a distributed network consisting of $N$ nodes. The theoretical analysis in this paper is restricted to undirected graphs $\mathcal{G}(t)=(\mathcal{V},\mathcal{E}(t))$ or to equivalent cases with a symmetric expected Laplacian. Denote the Laplacian matrix by $L(t)=D(t)-A(t)$, whose eigenvalues satisfy $0=\lambda_1\leq\lambda_2\leq\cdots\leq\lambda_N$, with $\Lbar=\mathbb{E}[L(t)]$.
+
+\begin{assumption}[Joint Connectivity]\label{ass:connect}
+  For any time instant $t\geq0$, the joint undirected graph $\bigcup_{s=t}^{t+\tau-1}\mathcal{G}(s)$ is connected, and $\Lbar$ is a symmetric positive semidefinite Laplacian matrix.
+\end{assumption}
+
+\subsection{Random Network Model}
+
+\begin{enumerate}
+  \item The time-varying topology satisfies Assumption~\ref{ass:connect}.
+  \item The communication delay satisfies $\delta_{ij}(t)\leq\delta_{\max}$.
+  \item The packet-loss variable $\gamma_{ij}(t)\in\{0,1\}$ is independent and identically distributed, with $\mathbb{E}[\gamma_{ij}(t)]=1-\ploss$.
+\end{enumerate}
+
+\subsection{Truncated-Gaussian Target-Privacy-Level Calibration Mechanism (TGM)}
+
+\paragraph{Scope of the calibration}
+The truncation operation changes the normalization constant of the output density and introduces a support-set issue that depends on the truncation bounds. Existing works have discussed this class of problems from the perspectives of analytic Gaussian calibration\cite{balle2018}, optimal noise-adding mechanisms\cite{geng2016}, bounded Gaussian mechanisms\cite{chen2022bounded}, and the RDP analysis of truncated mechanisms\cite{fu2023truncated}. This paper therefore uses Eq.~\eqref{eq:sigma} as a \textbf{bounded noise-scale calibration rule that targets a per-event value-channel budget}, and then uses explicit budget accounting to prevent cumulative target-budget overspending. The calibration is useful for the synchronization analysis because it provides a deterministic noise bound, but it should not be read as a complete sequence-level privacy theorem.
+
+\begin{definition}[Truncated-Gaussian Mechanism, TGM]
+  We use the standard $(\varepsilon,\delta)$ relaxation of differential privacy as the target-budget notation: a randomized mechanism $\mathcal{M}$ satisfies, for all adjacent inputs $x,x'$ and every measurable set $S$, $\mathbb{P}[\mathcal{M}(x)\in S]\leq e^\varepsilon\mathbb{P}[\mathcal{M}(x')\in S]+\delta$. In this paper, this definition provides the value-channel calibration target; the stronger sequence-level guarantee is not claimed.
+  Given a truncation bound $B>0$, the TGM generates noise $w_i(t)\sim\mathcal{TN}(0,\sigma_i^2(t),-B,B)$, with density function:
+  \[
+    f_{\mathrm{TN}}(x) = \frac{\phi(x/\sigma)}{\sigma[\Phi(B/\sigma)-\Phi(-B/\sigma)]},\quad x\in[-B,B],
+  \]
+  where $\phi(\cdot)$ is the standard normal density and $\Phi(\cdot)$ is the standard normal cumulative distribution function. By the definition of the TGM, $|w_i(t)|\leq B$ holds deterministically (with probability one).
+\end{definition}
+
+\textbf{TGM noise variance (target-budget-level calibration).} The truncation operation removes the probability tails of the Gaussian distribution, so that the variance formula of the untruncated Gaussian mechanism cannot be applied directly. For each \textbf{actual release event}, this paper adopts the following \textbf{target event-level value-channel calibration} rule:
+\begin{equation}\label{eq:sigma}
+  \sigma_i^2(t) = \frac{C_i^2}{2(\varepsilon_i^{\mathrm{tx}}(t))^2} \cdot \frac{1}{R(B/\sigma_i(t))},
+\end{equation}
+where $R(B/\sigma)=\Phi(B/\sigma)-\Phi(-B/\sigma)\in(0,1)$. The constant $C_i$ is a shorthand for the sensitivity term and the $\delta$-dependent analytic-Gaussian calibration factor used for the selected event-level target; this avoids treating $\delta$ as a hidden empirical parameter. Since $R<1$, Eq.~\eqref{eq:sigma} introduces an amplification factor $1/R>1$ relative to the untruncated Gaussian baseline variance, thereby conservatively compensating for the normalization change induced by truncation. When $B\geq3\sigma_i$, we have $R\approx0.997$, so the correction cost is $<0.3\%$ and the calibration result is close to the untruncated baseline.
+
+\textbf{Privacy scope.} We calibrate the value noise to a target per-event $(\varepsilon,\delta)$ budget via the analytic-Gaussian rule~\cite{balle2018}, and account the cumulative target budget without overspending (Lemma~\ref{thm:privacy}). Because truncation creates support-set complications and because the trigger instants themselves may reveal state-change information, this work does not claim a certified sequence-level privacy guarantee. Throughout the paper, TGM should therefore be interpreted as a bounded value-channel privacy-budget calibration module rather than as a complete privacy mechanism covering both values and timing.
+
+\begin{proposition}[Existence and Uniqueness of the Implicit Variance Equation]\label{prop:sigma}
+  For any fixed actual-release-event budget $\varepsilon_i^{\mathrm{tx}}(t)>0$, fixed event-level $\delta$ absorbed in $C_i$, and truncation bound $B>0$, let
+  \[
+    a_i(t)=\frac{C_i^2}{2(\varepsilon_i^{\mathrm{tx}}(t))^2},\qquad
+    h(\sigma)=\sigma^2 R(B/\sigma),\quad \sigma>0.
+  \]
+  Then the implicit equation $h(\sigma)=a_i(t)$ has a unique solution on $(0,\infty)$, and hence the $\sigma_i(t)$ defined by Eq.~\eqref{eq:sigma} is well defined.
+\end{proposition}
+
+\begin{proof}
+The function $h(\sigma)$ is continuous on $(0,\infty)$, and
+\[
+  \lim_{\sigma\to0^+}h(\sigma)=0,\qquad
+  \lim_{\sigma\to\infty}h(\sigma)=+\infty.
+\]
+Furthermore, for $y=B/\sigma>0$, we have
+\[
+  h'(\sigma)=2\sigma R(y)-2B\phi(y)=2\sigma\bigl(R(y)-y\phi(y)\bigr).
+\]
+Let $q(y)=R(y)-y\phi(y)$. Since $R'(y)=2\phi(y)$ and $(y\phi(y))'=\phi(y)-y^2\phi(y)$, we have $q(0)=0$, and
+\begin{equation}
+  \begin{aligned}
+    q'(y)
+    &=R'(y)-(y\phi(y))'\\
+    &=2\phi(y)-\bigl(\phi(y)-y^2\phi(y)\bigr)\\
+    &=\phi(y)(1+y^2)>0,\qquad y>0.
+  \end{aligned}
+\end{equation}
+Hence $q(y)>0$ for any $y>0$, and therefore $h'(\sigma)>0$. Consequently $h(\sigma)$ is strictly monotonically increasing, and combined with the limits at both ends, it follows that the equation $h(\sigma)=a_i(t)$ has a unique solution.
+\end{proof}
+
+\begin{remark}[Numerical Solution]
+  Let the untruncated Gaussian baseline scale be $\sigma_{\mathrm{base}}=C_i/(\sqrt{2}\,\varepsilon_i^{\mathrm{tx}}(t))$. Since $R(B/\sigma)\leq1$, the unique solution satisfies $\sigma_i(t)\geq \sigma_{\mathrm{base}}$. In a practical implementation, one may set $\sigma_L=\sigma_{\mathrm{base}}$, then use a doubling search to find an upper bound $\sigma_U$ satisfying $h(\sigma_U)\geq a_i(t)$, and subsequently apply bisection on the interval $[\sigma_L,\sigma_U]$ to solve Eq.~\eqref{eq:sigma}. Since $h(\sigma)$ is strictly monotonic, this procedure is stable and free of multiple-solution ambiguity.
+\end{remark}
+
+\textbf{Truncation-bound design:} $B=3\sigma_{\max}$, which guarantees that $|w_i(t)|\leq B<\infty$ holds deterministically.
+
+\subsection{AR Silence Prediction Mechanism}
+
+During the silence period, a $p$-th-order AR model is used to predict the state of neighbor $j$:
+\begin{equation}
+  \hat{x}_{j|i}(t) = \sum_{k=1}^{p}\hat{\phi}_{ij,k}\tilde{x}_{j|i}(t_{\mathrm{last},ij}-k+1) + \nu_{ij}(t),
+\end{equation}
+where $t_{\mathrm{last},ij}$ denotes the last time at which node $i$ successfully received a message from node $j$, $\tilde{x}_{j|i}(\cdot)$ is node $i$'s receiver-local history of $j$'s published observations, $\hat{\phi}_{ij,k}$ are the AR coefficients estimated online via RLS, and $\nu_{ij}(t)$ is the prediction residual. When the receiving node is clear from context, $\hat{x}_{j|i}(t)$ is abbreviated as $\hat{x}_j(t)$. Since the AR training input consists of the historical observations $\tilde{x}_{j|i}=x_j+w_j$ corrupted by TGM noise, the residual baseline $\nu_0$ contains a value-channel noise-contamination term (see the preliminary analysis in Section~\ref{sec:nu0}).
+
+\subsection{Problem Formulation}
+
+The \textbf{discrete-time} state dynamics of node $i$ ($t=0,1,2,\ldots$) are given by
+\begin{equation}\label{eq:dynamics}
+  x_i(t+1) = x_i(t) + u_i(t) + d_i(t),
+\end{equation}
+where $\|d_i(t)\|\leq\dmax$ and $\mathbb{E}[d_i(t)]=0$ (Assumption~\ref{ass:dist}). \textbf{It should be emphasized that the privacy noise $w_i(t)$ is used solely to construct the published observation $\tilde{x}_i(t)=x_i(t)+w_i(t)$ and does not directly enter the physical state update~\eqref{eq:dynamics}; its effect propagates into the closed loop only indirectly, through the observation error and the AR prediction error in the computation of the control input.}
+
+\textbf{Synchronization objective:} in the presence of noise, prediction error, and packet loss, drive the inter-node state disagreement into a quantifiable mean-square error floor or a bounded error band, while simultaneously satisfying the energy constraint (Proposition~\ref{thm:energy}), the target budget constraint (Budget Accounting Lemma~\ref{thm:privacy}), the performance constraint (Theorem~\ref{thm:conv}), and the scalability constraint ($O(d)$ per-node computational complexity, where $d$ is the average degree).
+
+% ---------------------------------------------------------------------------
+\section{E-PAS Framework Design}
+
+\subsection{Architectural Overview}
+
+Fig.~\ref{fig:framework} shows the overall architecture of the framework. \EPAS{} comprises four cooperating modules: \TGM{}, the Truncated-Gaussian Mechanism for target-privacy calibration; \ECP{}, the Energy \& AR-prediction Co-process; \ACG{}, Adaptive Consensus Gain; and \AET{}, Adaptive Event-Triggered communication. Together, these four modules form a closed-loop structure of ``bounded-noise observation $+$ silence prediction $+$ adaptive correction $+$ sparse triggering.''
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_polished/framework_architecture.pdf}
+\caption{Architecture of the proposed \EPAS{} framework. The modules are implemented at the node level and interact through event-triggered value releases and AR prediction during silent intervals.}
+\label{fig:framework}
+\end{figure}
+
+
+\subsection{Truncated-Gaussian Mechanism (TGM) Target-Privacy Calibration Module}
+
+At time $t$, node $i$ generates truncated-Gaussian noise $w_i(t)\sim\mathcal{TN}(0,\sigma_i^2(t),-B,B)$, where $\sigma_i(t)$ is uniquely determined by~\eqref{eq:sigma}. By the definition of TGM, $|w_i(t)|\leq B$ holds deterministically, which is consistent with the bounded operating-range setting in Assumption~\ref{ass:lipschitz} (see Section~\ref{sec:thm}). Node $i$ broadcasts $\tilde{x}_i(t)=x_i(t)+w_i(t)$, and a neighbor receives
+\[
+  \tilde{x}_{ij}(t) = \gamma_{ij}(t)\bigl[\tilde{x}_i(t-\delta_{ij}(t))+\eta_{ij}(t)\bigr].
+\]
+Thus, the TGM noise acts on the \textbf{communication/observation layer} rather than on the controlled plant itself: it alters the quality of the information available to neighbors, and hence the resulting control input, but not the driving term of the state equation~\eqref{eq:dynamics}.
+
+\subsection{Energy \& AR-prediction Co-process (ECP) Module}
+
+The node energy consumption is $E_i(t)=E_{\mathrm{comm},i}(t)+E_{\mathrm{comp},i}(t)$:
+\begin{align}
+  E_{\mathrm{comm},i}(t) &= \alpha|\mathcal{C}_i(t)|(P_{\mathrm{TX}}+P_{\mathrm{RX}}),\label{eq:energy_comm}\\
+  E_{\mathrm{comp},i}(t) &= \beta\bigl(\|w_i(t)\|^2+\|u_i(t)\|^2\bigr).\label{eq:energy_comp}
+\end{align}
+AR energy prediction: $\hat{E}_i(t+k)=\sum_{j=1}^p a_j E_i(t-j+1)+b_k$ (online RLS estimation with a forgetting factor of $0.99$).
+
+\subsection{Adaptive Consensus Gain (ACG) Module}
+
+The control law is
+\begin{equation}\label{eq:control}
+  u_i(t) = \kappa_i(t)\sum_{j\in\mathcal{N}_i(t)}a_{ij}(t)\bigl(\hat{x}_j(t)-\tilde{x}_i(t)\bigr).
+\end{equation}
+The gain is updated (hard-constrained to $[\kmin,\kmax]$) by
+\begin{equation}\label{eq:gain}
+  \begin{aligned}
+    \kappa_i(t+1)=\clip\bigl(&\kappa_i(t)+\lambda_1(\sigma_i^2-\bar{\sigma}^2)+\lambda_2(\bar{\delta}_i-\bar{\delta})\\
+    &+\lambda_3(\hat{E}_i-E_{\mathrm{thresh}}),\;[\kmin,\kmax]\bigr).
+  \end{aligned}
+\end{equation}
+
+\subsection{Adaptive Event-Triggered communication (AET) Module}
+
+The triggering conditions (triggering occurs if either is satisfied) are
+\begin{align}
+  \intertext{Condition A (state deviation):}
+  \xi_i(t)&=\|\tilde{x}_i(t)-\tilde{x}_i(t_{\mathrm{last}})\|^2 \geq \theta_i(t),\label{eq:condA}\\
+  \intertext{Condition B (timeout enforcement):}
+  k_i(t)&=t-t_{\mathrm{last}} \geq K_{\max}.\label{eq:condB}
+\end{align}
+The threshold is updated by
+\begin{equation}\label{eq:theta}
+  \begin{aligned}
+    \theta_i(t+1)=\max\!\bigl(&\theta_{\min},\;\theta_i(t)+\mu_1(\hat{E}_i-E_{\mathrm{target}})\\
+    &+\mu_2(\bar{\varepsilon}_i(t)-\varepsilon_{\min})+\mu_3 e_i(t)\bigr).
+  \end{aligned}
+\end{equation}
+\begin{remark}[Tuning dimensions of $\mu_1,\mu_2,\mu_3$]
+  The coefficients $\mu_1$, $\mu_2$, and $\mu_3$ map normalized energy mismatch, privacy-budget margin, and local tracking error into the same units as the trigger threshold $\theta_i$. In the normalized simulator used in Section~VI, practical starting ranges are $\mu_1\in[10^{-3},10^{-2}]$ per normalized energy unit, $\mu_2\in[10^{-4},10^{-3}]$ per privacy-budget unit, and $\mu_3\in[10^{-3},10^{-2}]$ per normalized error unit. These ranges are initialization guidelines rather than universal constants; Section~\ref{sec:sensitivity} reports the sensitivity scan used for final calibration.
+\end{remark}
+
+\subsection{Dynamic Privacy-Budget Management}
+
+\textbf{Event-level budget convention.} Let $z_i(t)\in\{0,1\}$ indicate whether node $i$ actually broadcasts at time $t$: $z_i(t)=1$ if the triggering condition is satisfied and a publication occurs, and $z_i(t)=0$ during the silence period. In this paper, we distinguish the \textbf{nominal per-publication budget} from the \textbf{actual cumulative consumed budget}.
+
+\begin{equation}
+  \bar{\varepsilon}_i(t+1) = \clip\!\bigl(\bar{\varepsilon}_i(t)\cdot(1-\rho(p_i(t)-\bar{p})),\;[\varepsilon_{\min},\egl]\bigr),
+\end{equation}
+where $\bar{\varepsilon}_i(t)$ is the candidate value of the \textbf{nominal per-event target budget}. The budget that is actually charged to the value-channel target-budget accounting is defined as
+\begin{equation}\label{eq:eps_tx}
+  \varepsilon_i^{\mathrm{tx}}(t) = z_i(t)\cdot\min\!\bigl\{\bar{\varepsilon}_i(t),\, \egl-\varepsilon_i^{\mathrm{used}}(t)\bigr\},
+\end{equation}
+and the cumulative consumed budget evolves according to the recursion
+\begin{equation}
+  \varepsilon_i^{\mathrm{used}}(t+1) = \varepsilon_i^{\mathrm{used}}(t) + \varepsilon_i^{\mathrm{tx}}(t),\qquad \varepsilon_i^{\mathrm{used}}(0)=0.
+\end{equation}
+Consequently, when $z_i(t)=0$ the node performs no new external publication, so the silence period \textbf{consumes no new value-channel target budget}; only genuine broadcast events consume $\varepsilon_i^{\mathrm{tx}}(t)$. This statement concerns the value released at broadcast time and does not by itself cover the possible information leakage from the absence or timing of a trigger.
+This convention is consistent with the event-sequence accounting principle in differential-privacy composition analysis~\cite{kairouz2017,mironov2017}: the per-event target budget is allocated and accumulated without cumulative overspending, providing the budget input that a composition or RDP analysis consumes.
+
+
+\subsection{Implementation workflow}
+
+Algorithm~\ref{alg:epas} gives the node-level workflow of \EPAS{}. The pseudocode is added to make the method easier to reproduce and to align the manuscript with the engineering-oriented scope of distributed sensor-network research.
+
+\begin{algorithm}[htbp]
+\caption{Node-level E-PAS update at node $i$}
+\label{alg:epas}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} local state $x_i(t)$, local threshold $\theta_i(t)$, gain $\kappa_i(t)$, budget state $\varepsilon_i^{\mathrm{used}}(t)$, neighbour histories $\{\tilde{x}_{j|i}\}_{j\in\mathcal{N}_i}$.
+\STATE Predict silent-neighbour states $\hat{x}_{j|i}(t)$ using the AR model and receiver-local histories.
+\STATE Compute the control input $u_i(t)$ using Eq.~\eqref{eq:control} and update the physical state using Eq.~\eqref{eq:dynamics}.
+\STATE Update the energy predictor and the adaptive consensus gain using Eqs.~\eqref{eq:energy_comm}--\eqref{eq:gain}.
+\STATE Compute the state-deviation statistic $\xi_i(t)$ and the silent horizon $k_i(t)$.
+\IF{$\xi_i(t)\geq\theta_i(t)$ or $k_i(t)\geq K_{\max}$}
+  \STATE Set $z_i(t)=1$ and assign the charged target budget $\varepsilon_i^{\mathrm{tx}}(t)$ using Eq.~\eqref{eq:eps_tx}.
+  \STATE Solve the TGM scale equation by bisection and broadcast $\tilde{x}_i(t)=x_i(t)+w_i(t)$.
+  \STATE Update $\varepsilon_i^{\mathrm{used}}(t+1)$ and reset the last-release time.
+\ELSE
+  \STATE Set $z_i(t)=0$; consume no new target budget and keep the node in silent prediction mode.
+\ENDIF
+\STATE Update the event threshold $\theta_i(t+1)$ using Eq.~\eqref{eq:theta}.
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Practical Deployment Procedure}
+
+For a deployment-oriented sensor-network implementation, \EPAS{} can be configured through the following steps. First, estimate the state regularity envelope $L_x$ and the trigger-statistic envelope $\Mstep$ from pilot sensor traces or actuator-rate limits, and inflate both values by a conservative safety factor. Second, choose $K_{\max}$ from the maximum admissible silent horizon allowed by the application latency and prediction-error tolerance. Third, set the global target budget $\egl$ and the event-level budget-allocation rule before the experiment or deployment begins; the fixed-budget protocol in Section~VI is a benchmark accounting convention rather than an online privacy scheduler. Fourth, initialize the \AR{} predictor, gain range, and event threshold using the sensitivity ranges in Section~\ref{sec:sensitivity}. Finally, monitor the realized trigger rate, packet loss, prediction residual, and model-based energy ratio; reduce $K_{\max}$ or lower the trigger threshold if prediction residuals exceed the design envelope, and raise the trigger threshold if energy use or the realized trigger rate is too high.
+
+% ---------------------------------------------------------------------------
+
+\section{Theoretical Analysis}\label{sec:thm}
+
+\begin{assumption}[Bounded gain]\label{ass:gain}
+  $\kappa_i(t)\in[\kmin,\kmax]$, with $0<\kmin\leq\kmax<\infty$.
+\end{assumption}
+
+\begin{assumption}[Independent zero-mean disturbance]\label{ass:dist}
+  $\mathbb{E}[d_i(t)]=0$, $\|d_i(t)\|\leq\dmax$, and independent of the state.
+\end{assumption}
+
+\begin{assumption}[Bounded delay and independent packet loss]\label{ass:packet}
+  $\delta_{ij}(t)\leq\delta_{\max}$; $\gamma_{ij}(t)$ are independent and identically distributed, with $\mathbb{E}[\gamma_{ij}(t)]=1-\ploss$.
+\end{assumption}
+
+\begin{assumption}[Bounded edge weights and neighborhood size]\label{ass:topobound}
+  There exist constants $\amax<\infty$ and $\gdeg<\infty$ such that, for any time instant $t$,
+  \[
+    0\leq a_{ij}(t)\leq \amax,\qquad |\mathcal{N}_i(t)|\leq \gdeg,\quad \forall i,j\in\mathcal{V}.
+  \]
+  This assumption is used to conservatively project the control-mismatch term onto an explicit network-uncertainty envelope.
+\end{assumption}
+
+\begin{assumption}[Bounded channel noise]\label{ass:channel}
+  $\|\eta_{ij}(t)\|\leq\eta_{\max}$.
+\end{assumption}
+
+\begin{assumption}[State Lipschitz smoothness (compatible with the \TGM{} bounded-support setting)]\label{ass:lipschitz}
+  The true state of node $j$ satisfies a deterministic step-wise Lipschitz smoothness:
+  \[
+    \|x_j(t)-x_j(t-1)\| \leq L_x,\quad \forall j\in\mathcal{V},\;\forall t\geq0,
+  \]
+  where $L_x<\infty$ is regarded as an \textbf{exogenous regularity constant} characterizing the maximum one-step variation rate of the true state trajectory within the operating range. It can be estimated from actuator saturation, sampling-period limits, the physical state operating range, or pilot experiments, but is \textbf{no longer reverse-defined by the conclusion of Theorem~\ref{thm:conv}}, thereby avoiding a circular dependency among $\Gamma(K_{\max})$, $L_x$, and the main convergence theorem.
+
+  \textbf{Compatibility with \TGM{}:} \TGM{} guarantees that the communication-layer noise has a bounded support set, which keeps the control-input error and prediction error based on $\tilde{x}_i$ within an analyzable bounded operating range; however, $L_x$ itself describes the temporal regularity of the \textbf{true state} rather than a quantity derived from the privacy mechanism.
+\end{assumption}
+
+\begin{remark}[Engineering estimation of $L_x$]
+  Since the physical state update contains the disturbance term $\|d_i(t)\|\leq\dmax$, a conservative one-step regularity envelope should at least dominate the disturbance contribution; in normalized units this gives the design rule $L_x\geq\dmax$, with additional margin for actuator saturation and the maximum admissible control increment. In deployment, $L_x$ can be estimated from sampling-period limits, actuator-rate bounds, physical state ranges, or high-quantile one-step increments measured in pilot trajectories, and then inflated by a safety factor before being used in the analysis.
+\end{remark}
+
+\begin{assumption}[Bounded envelope of the triggering statistic]\label{ass:xi}
+  There exists a known constant $\Mstep<\infty$ such that the triggering statistic of node $i$ satisfies
+  \[
+    \xi_i(t)=\|\tilde{x}_i(t)-\tilde{x}_i(t_{\mathrm{last}})\|^2 \leq \Mstep^2,\quad \forall i,\;\forall t\geq0.
+  \]
+  The constant $\Mstep$ is regarded as a \textbf{design-time verifiable one-step release-increment envelope}, which can be estimated from the state normalization range, the sensor measurement span, or the steady-state trajectories in pilot experiments, rather than being reverse-derived from the mean-square boundedness of Theorem~\ref{thm:conv}.
+\end{assumption}
+
+\begin{remark}[Experimental instantiation of $\Mstep$ and $\theta^*$]\label{rem:mstep}
+In the trigger-rate validation of Section~VI, $\theta^*$ is taken as the sample mean of $\theta_i(t)$ within the quasi-stationary window after burn-in; $\Mstep^2$ is taken as the empirical $95\%$ quantile of the triggering statistic $\xi_i(t)$ within the same window. In other words, this paper does not treat $\Mstep$ as a constant ``automatically provided by the theorem,'' but rather as an engineering envelope quantity \textbf{re-estimated under a given topology, disturbance, and normalized operating range}.
+\end{remark}
+
+\subsection{Preliminary analysis for the main convergence theorem: $\nu_0=\mathcal{O}(\sbar)$---value-channel-noise dependence of the AR residual}\label{sec:nu0}
+
+\paragraph{Core closed loop.}
+The \AR{} training input consists of historical observations corrupted by \TGM{} noise, and the prediction-residual baseline $\nu_0$ is an increasing function of the bounded value-channel noise standard deviation $\sbar$. This relationship is an important intermediary for explaining the accuracy advantage of \EPAS{}.
+
+The single-step \AR{} prediction residual is decomposed as
+\[
+  \nu_j(t) = \underbrace{x_j(t)-\sum_{k=1}^p\hat{\phi}_k x_j(t-k)}_{\nubase} - \sum_{k=1}^p\hat{\phi}_k w_j(t-k).
+\]
+The first term is the pure state-dynamics residual (independent of the noise), while the second term is the error-amplification term arising from input-noise contamination:
+\[
+  \mathbb{E}\!\left[\left\|\sum_{k=1}^p\hat{\phi}_k w_j(t-k)\right\|\right] \leq \Psum\cdot\mathbb{E}[\|w_j\|] \leq \Psum\cdot\sbar,
+\]
+where $\Psum=\sum_{k=1}^p|\hat{\phi}_k|$ is guaranteed to be bounded by the stability of the \AR{} model, and $\sbar=\mathbb{E}[|w_j|]$ is the mean of the \TGM{} noise. Therefore,
+\begin{equation}\label{eq:nu0}
+  \boxed{\nu_0 = \nubase + \Psum\cdot\sbar = \nubase + \mathcal{O}(\sbar).}
+\end{equation}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{figures_polished/closed_loop_mechanism.pdf}
+\caption{Accuracy self-reinforcing closed-loop mechanism.}
+\label{fig:loop}
+\end{figure}
+
+\textbf{Accuracy self-reinforcing closed loop.} Under an equivalent global budget of $\egl=1.0$, \EPAS{} (about $1{,}218$ communications) has a higher per-event budget than the high-trigger-rate Privacy-aware scheme (about $12{,}863$ communications), so its \TGM{} noise per release is smaller. By \eqref{eq:nu0}, the \AR{} prediction-residual baseline decreases accordingly; substituting this into $\Gamma(K_{\max})\propto\sbar^2+\numax^2$ partly explains the steady-state error difference observed in privacy scenarios (about $14\times$ relative to the strongest baseline in the reconstruction experiments). This constitutes the self-reinforcing closed loop illustrated in Fig.~\ref{fig:loop}.
+
+\subsection{Computational Complexity Analysis}\label{sec:complexity}
+
+\begin{table}[htbp]
+\caption{Per-step computational complexity of each E-PAS module}
+\label{tab:complexity}
+\centering
+\begin{tabularx}{\columnwidth}{lXc}
+\toprule
+\textbf{Module} & \textbf{Operation} & \textbf{Complexity} \\
+\midrule
+TGM & Truncated-Gaussian Mechanism (target-privacy calibration) & $O(1)$ \\
+ECP & Energy \& AR-prediction Co-process & $O(p) + O(p^2)$ \\
+ACG & Adaptive Consensus Gain (average degree $d$) & $O(d)$ \\
+AET & Adaptive Event-Triggered communication check & $O(1)$ \\
+\midrule
+\textbf{Total} & --- & $O(d + p^2)$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Table~\ref{tab:complexity} details the per-step computational complexity of each \EPAS{} module. Since typically $p \ll N$ (with $p=3$ in the experiments) and the average degree $d$ is small when the network is sparse, a sparse neighbor-list implementation has algorithmic per-node complexity $O(d + p^2)$. By comparison, centralized methods require $O(N^2)$ or higher complexity. The released NumPy reference implementation uses a dense receiver-side history for auditability, so its measured runtime is reported separately in Table~\ref{tab:scale}.
+
+\textbf{Rationale for selecting the AR order $p$:} The choice of $p=3$ in the experiments is based on the following considerations: (1) the preferred result of the Akaike Information Criterion (AIC) on the validation dataset; (2) a trade-off between the computational complexity $O(p^2)$ and the prediction accuracy, where for $p>3$ the MSE improvement is less than $5\%$ while the computational overhead increases significantly; and (3) the typical temporal correlation of sensor-state dynamics, as industrial sensor data usually exhibit an effective memory of $3$--$5$ steps. The sensitivity analysis shows that the system performance is stable for $p\in\{2,3,4\}$, and $p=3$ is a robust compromise.
+
+\subsection{Main Convergence Theorem}
+
+\begin{theorem}[Sufficient mean-square convergence bound to the error floor]\label{thm:conv}
+  Under Assumptions~\ref{ass:connect}--\ref{ass:lipschitz} and the dual-trigger mechanism \eqref{eq:condA}\eqref{eq:condB} (with parameter $K_{\max}$), suppose that
+  \begin{equation}\label{eq:kmax_cond}
+    \kmax < \sqrt{\frac{2\kmin(1-\ploss)\ltwo}{\lN^2}},
+  \end{equation}
+  Physically, this condition requires the gain upper bound to be constrained by the ratio between the algebraic connectivity $\lambda_2(\Lbar)$ and the squared spectral radius $\lambda_N^2(\Lbar)$.
+  Under this condition, the mean-square synchronization error of the system satisfies
+  \begin{equation}\label{eq:conv}
+    \mathbb{E}[\|x(t)-\bar{x}\mathbf{1}\|^2] \leq \rho^t V(0) + \frac{\Gamma(K_{\max})}{1-\rho},
+  \end{equation}
+  where
+  \begin{align}
+    \rho &= 1 - 2\kmin(1-\ploss)\ltwo \notag\\
+    &\quad {}+ \kmax^2\lN^2 \in(0,1),\label{eq:rho}\\
+    \Gamma(K_{\max}) &= 4\kmax^2\gdeg^2\amax^2 N\bigl(\sbar^2+\nu(K_{\max})^2+\xinet\bigr)\notag\\
+    &\quad {}+ \dmax^2 N,\label{eq:Gamma}\\
+    \xinet &= \eta_{\max}^2 + (L_x\delta_{\max})^2,\label{eq:Xinet}\\
+    \nu(K_{\max}) &= \nu_0+(K_{\max}-1)L_x\notag\\
+    &= (\nubase+\Psum\sbar)\notag\\
+    &\quad {}+(K_{\max}-1)L_x.\label{eq:nuKmax}
+  \end{align}
+  Here, $\Gamma(K_{\max})$ aggregates the steady-state error floor introduced through the control-input channel by the TGM observation noise, the AR prediction residual, the channel noise, the bounded delay, and the external disturbance; the network uncertainty enters this upper bound explicitly through $\eta_{\max}$, $\delta_{\max}$, $\amax$, and $\gdeg$.
+\end{theorem}
+
+\begin{proof}
+\textbf{Step 1 (Lyapunov function and error variable):} Let $e(t)=x(t)-\bar{x}\mathbf{1}$ and $V(t)=\|e(t)\|^2$, where $\bar{x}=(1/N)\sum_i x_i(0)$. By the state equation \eqref{eq:dynamics}, in the actual closed loop it is $u_i(t)$ and $d_i(t)$ that enter the state update; the privacy noise $w_i(t)$ does not enter the physical state directly, but instead affects the computation of the control input through the disclosed information.
+
+\textbf{Step 2 (Control-input decomposition):} Write the actual control as
+\[
+  u_i(t)=u_i^{\mathrm{id}}(t)+\Delta u_i(t),
+\]
+where
+\[
+  u_i^{\mathrm{id}}(t)=\kappa_i(t)\sum_{j\in\mathcal{N}_i(t)}a_{ij}(t)\bigl(x_j(t)-x_i(t)\bigr)
+\]
+corresponds to the consensus control term under ideal noise-free information, while
+ \[
+  \begin{aligned}
+    \Delta u_i(t)=\kappa_i(t)\sum_{j\in\mathcal{N}_i(t)}a_{ij}(t)\Bigl[
+      &(\hat{x}_j(t)-x_j(t))\\
+      &-(\tilde{x}_i(t)-x_i(t))
+    \Bigr]
+  \end{aligned}
+\]
+is the control mismatch term jointly induced by the TGM observation noise, the AR prediction residual, the channel noise, and the bounded delay. From $\tilde{x}_i(t)=x_i(t)+w_i(t)$, Assumption~\ref{ass:channel}, and Assumption~\ref{ass:lipschitz}, for any neighbor term we have
+\[
+  \|\hat{x}_j(t)-x_j(t)\| \leq \nu(K_{\max})+\eta_{\max}+L_x\delta_{\max}.
+\]
+Furthermore, under Assumption~\ref{ass:topobound},
+\[
+  \begin{aligned}
+    \|\Delta u_i(t)\|
+    \leq {}& \kmax\gdeg\amax\Bigl(
+      \|w_i(t)\|+\nu(K_{\max}) \\
+      &\quad {}+\eta_{\max}+L_x\delta_{\max}
+    \Bigr).
+  \end{aligned}
+\]
+Then, by $(a+b+c+d)^2\leq4(a^2+b^2+c^2+d^2)$, we obtain
+\[
+  \begin{aligned}
+    \|\Delta u_i(t)\|^2
+    \leq {}& 4\kmax^2\gdeg^2\amax^2 \Bigl(
+      \|w_i(t)\|^2+\nu(K_{\max})^2 \\
+      &\quad {}+\eta_{\max}^2+(L_x\delta_{\max})^2
+    \Bigr).
+  \end{aligned}
+\]
+
+\textbf{Step 3 (Difference expansion):}
+\[
+  V(t+1) = V(t) + 2e^\top\!\bigl(u(t)+d(t)\bigr) + \|u(t)+d(t)\|^2.
+\]
+Here \textbf{no direct additive term in $w_i(t)$ appears}, because $w_i(t)$ does not enter the physical state update \eqref{eq:dynamics} and only affects the Lyapunov difference indirectly through $\Delta u(t)$.
+
+\textbf{Step 4 (Separation of the ideal consensus term and the control mismatch term):} Decompose the cross term as
+\[
+  e^\top u(t)=e^\top u^{\mathrm{id}}(t)+e^\top \Delta u(t).
+\]
+Using the effective Laplacian matrix $L_{\mathrm{eff}}(t)=\mathrm{diag}(\gamma_{ij}(t))\cdot L(t)$ and the gain diagonal matrix $\mathcal{K}(t)$, with $\mathcal{K}(t)=\mathrm{diag}(\kappa_1(t),\ldots,\kappa_N(t))$, we have
+\[
+  e^\top u^{\mathrm{id}}(t) = -e^\top \mathcal{K}(t)L_{\mathrm{eff}}(t)e,
+\]
+while, by the Cauchy inequality and Young's inequality,
+\[
+  |e^\top \Delta u(t)| \leq \frac{\kmin(1-\ploss)\ltwo}{2}\|e\|^2 + c_1\|\Delta u(t)\|^2,
+\]
+where
+\[
+  c_1=\frac{1}{2\kmin(1-\ploss)\ltwo}.
+\]
+This constant can be absorbed into the error-floor term.
+
+\textbf{Step 5 (Expectation handling and spectral bounds):} By Assumption~\ref{ass:dist}, $\mathbb{E}[e^\top d(t)\mid x(t)]=0$. For the ideal consensus term we have
+\[
+  \begin{aligned}
+    \mathbb{E}[e^\top L_{\mathrm{eff}}(t)e] &\geq (1-\ploss)\ltwo\|e\|^2,\\
+    \mathbb{E}[\|L_{\mathrm{eff}}(t)e\|^2] &\leq (1-\ploss)\lN^2\|e\|^2,
+  \end{aligned}
+\]
+where the second inequality uses the independence of the packet-loss variables and the Bernoulli property $\gamma_{ij}^2=\gamma_{ij}$.
+
+\textbf{Step 6 (Merging of error-floor terms):} Taking the expectation of the above and summing over the nodes, and merging the mean-square upper bound of $\Delta u(t)$ with the disturbance term $\|d(t)\|^2$, we obtain
+\[
+  \mathbb{E}[\|\Delta u(t)\|^2+\|d(t)\|^2] \leq \Gamma(K_{\max}),
+\]
+where $\Gamma(K_{\max})$ is exactly the aggregate error term induced through the control channel by the TGM observation noise, the AR residual, the channel noise, the bounded delay, and the external disturbance; $\eta_{\max}$ and $\delta_{\max}$ enter only the error floor and not the contraction factor $\rho$, because in the present treatment they are regarded as additional disturbances outside the ideal consensus dynamics.
+
+\textbf{Step 7 (Recursive inequality):} Combining the above estimates, we obtain
+\[
+  \mathbb{E}[V(t+1)\mid x(t)]\leq \rho V(t)+\Gamma(K_{\max}),
+\]
+where a sufficient condition for $\rho<1$ is exactly \eqref{eq:kmax_cond}. The recursion then yields \eqref{eq:conv}.
+\end{proof}
+
+\begin{remark}[Interpretation of the conservative aggregation in $\Gamma(K_{\max})$]
+Equation \eqref{eq:Gamma} deliberately combines $\eta_{\max}$, $\delta_{\max}$, $\amax$, and $\gdeg$ into a single \textbf{one-sided upper envelope}. The goal of this is not to obtain the tightest constant, but rather to preserve, without introducing additional edge-weight distributions, joint delay statistics, or path-dependent terms, the clear separation in which ``the contraction factor $\rho$ determines the convergence speed while the error floor $\Gamma(K_{\max})$ determines the steady-state bias.'' If the individual coefficients for the channel noise, delay propagation, and topology weights were retained, a tighter but also far more cumbersome network-structure-dependent upper bound could in principle be obtained; the present manuscript opts for an \textbf{interpretable closed-form envelope} rather than the most fine-grained path-level constant decomposition.
+\end{remark}
+
+\begin{theorem}[Time upper bound for reaching a given mean-square error threshold]\label{thm:finite}
+  Under the conditions of Theorem~\ref{thm:conv}, for any target threshold
+  \[
+    \Delta > \frac{\Gamma(K_{\max})}{1-\rho},
+  \]
+  define
+  \begin{equation}
+    T_{\Delta}
+    =
+    \left\lceil
+      \frac{
+        \log\!\left(
+          \frac{V(0)}{\Delta-\Gamma(K_{\max})/(1-\rho)}
+        \right)
+      }{\log(1/\rho)}
+    \right\rceil.
+  \end{equation}
+  Then, for all $t\geq T_{\Delta}$,
+  \[
+    \mathbb{E}[\|x(t)-\bar{x}\mathbf{1}\|^2]\leq \Delta.
+  \]
+  Hence $T_{\Delta}$ constitutes a time upper bound for the system to enter the given \textbf{mean-square error band}; this conclusion is a settling-time bound in the mean-square sense and is \textbf{not} a uniform state bound on the sample-path level.
+\end{theorem}
+
+\begin{proof}
+By Theorem~\ref{thm:conv},
+\[
+  \mathbb{E}[\|x(t)-\bar{x}\mathbf{1}\|^2]
+  \leq
+  \rho^t V(0)+\frac{\Gamma(K_{\max})}{1-\rho}.
+\]
+Requiring the right-hand side not to exceed the given threshold $\Delta$, it suffices that
+\[
+  \rho^t V(0)\leq \Delta-\frac{\Gamma(K_{\max})}{1-\rho}.
+\]
+Since it is assumed that $\Delta>\Gamma(K_{\max})/(1-\rho)$, the right-hand side is positive. Solving yields
+\[
+  t \geq
+  \frac{
+    \log\!\left(
+      \frac{V(0)}{\Delta-\Gamma(K_{\max})/(1-\rho)}
+    \right)
+  }{\log(1/\rho)}.
+\]
+Taking the ceiling at integer time instants gives the expression for $T_{\Delta}$, so that for all $t\geq T_{\Delta}$,
+\[
+  \mathbb{E}[\|x(t)-\bar{x}\mathbf{1}\|^2]\leq \Delta.
+\]
+\end{proof}
+
+\subsection{Quasi-Stationary Trigger-Rate Upper-Bound Proposition}
+
+\paragraph{Scope of applicability.}
+The time-varying $\theta_i(t)$ and $\bar{\varepsilon}_i(t)$ of E-PAS render the augmented state process time-inhomogeneous. At the present level of rigor, we state this result only as an \textbf{approximate upper-bound proposition under quasi-stationary conditions}, and we support its empirical applicability through the experiments of Section~VI.
+
+\begin{assumption}[Quasi-stationary empirical condition]\label{ass:ergodic}
+  There exist a burn-in instant $T_0$ and a steady-state center $(\theta^*,\bar{\varepsilon}^*)$ such that, for sufficiently large $t\geq T_0$,
+  \[
+    |\theta_i(t)-\theta^*|\leq\delta_\theta,\qquad
+    |\bar{\varepsilon}_i(t)-\bar{\varepsilon}^*|\leq\delta_\varepsilon,
+  \]
+  where $\delta_\theta,\delta_\varepsilon>0$ are sufficiently small. We further assume that, over this quasi-stationary window, the time average of the trigger statistic $\xi_i(t)$ can be approximated by the first-order moment of some empirical steady-state distribution $\pi_{\mathrm{qs}}$; that is, the deviation between the long-window sample mean and $\mathbb{E}_{\pi_{\mathrm{qs}}}[\xi_i]$ is negligible to within engineering-level accuracy.
+
+  \textbf{Conditions under which the assumption fails:} In extremely sparse graphs ($\lambda_2(\bar{L}) \to 0$) or highly non-stationary environments (time-varying statistical properties of external disturbances), the adaptive parameters may fail to converge, in which case Assumption~\ref{ass:ergodic} does not hold.
+\end{assumption}
+
+\begin{remark}[Experimental validation of Assumption~\ref{ass:ergodic}]
+The experimental results of Section~VI show that the adaptive parameters $\theta_i(t)$ and $\bar{\varepsilon}_i(t)$ remain bounded and settle within the finite 150-step horizon used in the reported simulations, supporting the plausibility of Assumption~\ref{ass:ergodic}. The trigger-rate validation experiment (Fig.~\ref{fig:trigger}) and the verification of \AR{} residual growth further corroborate the asymptotic stationarity of the adaptive parameters, providing empirical support for the applicability of this assumption under the present experimental setting.
+\end{remark}
+
+\begin{proposition}[Approximate trigger-rate upper bound under quasi-stationarity]\label{thm:trigger}
+  Under Assumptions~\ref{ass:connect}--\ref{ass:ergodic} and the \EPAS{} dual-trigger mechanism, the empirical mean trigger rate of node $i$ over an observation window of length $T$ after burn-in,
+  \[
+    \hat{f}_i(T)=\frac{|\{t\in[T_0,T_0+T-1]:\text{triggered}\}|}{T},
+  \]
+  satisfies the approximate upper bound
+  \begin{equation}\label{eq:fmax}
+    \begin{aligned}
+      \hat{f}_i(T)
+      &\lesssim \frac{1}{K_{\max}} + \frac{\Mstep^2}{\theta^*}\\
+      &=: \fmax < 1,
+    \end{aligned}
+  \end{equation}
+  where $\Mstep$ is the bounded envelope of the trigger statistic given by Assumption~\ref{ass:xi}, and $\theta^*$ is the quasi-stationary trigger threshold. The symbol $\lesssim$ indicates that this expression is a \textbf{quasi-stationary engineering upper bound}, whose tightness is verified by the experiments of Section~VI.
+\end{proposition}
+
+\begin{proof}
+\textbf{Step 1 (Residual-growth relation):} By Assumption~\ref{ass:lipschitz}, the prediction residual after $k$ steps of silence satisfies
+\begin{equation}\label{eq:nu_k}
+  \nu(k) \leq \nu_0 + (k-1)L_x.
+\end{equation}
+
+\textbf{Step 2 (Analytical relation between $K_{\max}$ and $\nu_{\mathrm{thresh}}$):} The timeout trigger~\eqref{eq:condB} guarantees that the actual number of silent steps does not exceed $K_{\max}-1$, which bounds the prediction residual as $\numax=\nu_0+(K_{\max}-1)L_x\leq\nu_{\mathrm{thresh}}$. Solving for $K_{\max}$ yields
+\begin{equation}\label{eq:Kmax}
+  K_{\max} = \left\lfloor\frac{\nu_{\mathrm{thresh}}-\nu_0}{L_x}\right\rfloor + 1.
+\end{equation}
+
+\textbf{Step 3 (Upper bound on the timeout trigger rate):} Two consecutive timeout triggers are separated by at least $K_{\max}$ steps, so the long-run timeout trigger frequency is $f_{\mathrm{timeout}}=1/K_{\max}$.
+
+\textbf{Step 4 (Quasi-stationary window-average approximation):} By Assumption~\ref{ass:ergodic}, over $[T_0,\infty)$ the steady-state first-order moment of the trigger statistic can be approximated by a quasi-stationary window average. Define the single-step state-trigger indicator
+\[
+  Z_t^{\mathrm{state}}=\mathbf{1}\{\xi_i(t)\geq\theta_i(t)\}.
+\]
+Since $|\theta_i(t)-\theta^*|\leq\delta_\theta$ with $\delta_\theta$ small, the threshold level can, for engineering purposes, be approximated by $\theta^*$. Furthermore, by Assumption~\ref{ass:xi}, $\xi_i(t)\leq\Mstep^2$. Hence, for the empirical steady-state distribution $\pi_{\mathrm{qs}}$, Markov's inequality gives
+\[
+  \mathbb{P}_{\pi_{\mathrm{qs}}}\bigl(\xi_i\geq\theta^*\bigr)
+  \leq \frac{\mathbb{E}_{\pi_{\mathrm{qs}}}[\xi_i]}{\theta^*}
+  \leq \frac{\Mstep^2}{\theta^*}.
+\]
+Consequently, the average proportion of state triggers over the window after burn-in can be conservatively estimated by
+\[
+  f_{\mathrm{state}} \lesssim \frac{\Mstep^2}{\theta^*}.
+\]
+The finite number of terms over $[0,T_0]$ is negligible in large-window statistics.
+
+\textbf{Step 5 (Combining to obtain the quasi-stationary upper bound):} Summing the timeout trigger term and the state trigger term yields~\eqref{eq:fmax}. A sufficient condition for $\fmax<1$ is $\theta^*>\Mstep^2/(1-1/K_{\max})$; if $\theta_{\min}>\Mstep^2/(1-1/K_{\max})$ and the threshold update maintains $\theta_i(t)\approx\theta^*$ within the quasi-stationary window, then this upper bound remains valid.
+\end{proof}
+
+\begin{remark}[Loose envelope interpretation]
+  The envelope $1/K_{\max}+\Mstep^2/\theta^*$ in Proposition~\ref{thm:trigger} is a qualitative engineering characterization of the two trigger sources, not a tight deterministic upper bound. The trigger-rate validation in Fig.~\ref{fig:trigger} shows that this expression is numerically loose under the reported simulations; it should therefore be read as a design-side monotonicity guide rather than a sharp performance certificate.
+\end{remark}
+
+%% (figure)
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.72\textwidth]{figures_polished/tradeoff_curve.pdf}
+\caption{Illustrative three-way trade-off curve derived from Eq.~\eqref{eq:tradeoff}; this is a normalized theoretical envelope rather than an experimental measurement. The shaded regions highlight the practical sparse-communication interval and the near-divergence regime as communication tends to zero.}
+\label{fig:tradeoff}
+\end{figure}
+
+\subsection{Three-Way Quantitative Trade-off and Boundary Self-Consistency}
+
+\paragraph{Boundary-consistency remark}
+In the following, we examine the physical consistency of the two extreme boundaries $\delta_E\!\to\!0$ and $\delta_E\!\to\!1$ to confirm that the three-way trade-off formula exhibits no evident boundary pathologies.
+
+In the timeout-trigger-dominated regime ($\delta_E\approx1-1/K_{\max}$), substituting $K_{\max}\approx1/(1-\delta_E)$ into Eqs.~\eqref{eq:Gamma} and~\eqref{eq:nuKmax} yields the three-way trade-off formula
+\begin{equation}\label{eq:tradeoff}
+  \begin{aligned}
+    \mathrm{MSE}(\delta_E) \approx {}&
+    \frac{4\kmax^2\gdeg^2\amax^2 N}{1-\rho}
+    \bigl(\sbar^2+\xinet\bigr)\\
+    &+ \frac{4\kmax^2\gdeg^2\amax^2 N}{1-\rho}
+    \left(
+      \nubase+\Psum\sbar+\tfrac{L_x\delta_E}{1-\delta_E}
+    \right)^{\!2}\\
+    &+ \frac{\dmax^2 N}{1-\rho}.
+  \end{aligned}
+\end{equation}
+
+\textbf{Boundary-behavior check:}
+\begin{itemize}
+  \item \textbf{$\delta_E\!\to\!0$ ($K_{\max}=1$, communication at every step):} The penalty term $L_x\delta_E/(1-\delta_E)\to0$, and~\eqref{eq:tradeoff} degenerates to
+    \[
+      \mathrm{MSE}(0) = \frac{4\kmax^2\gdeg^2\amax^2 N(\sbar^2+\nu_0^2+\xinet)+\dmax^2 N}{1-\rho}.
+    \]
+    This is precisely the \textbf{theoretical steady-state error bound of conventional periodic-communication methods}, in agreement with physical intuition.
+  \item \textbf{$\delta_E\!\to\!1$ ($K_{\max}\!\to\!\infty$, communication tending to zero):} The penalty term $L_xK_{\max}\to\infty$, so $\mathrm{MSE}(\delta_E)\to+\infty$, indicating that ``zero communication'' cannot sustain a finite consensus error.\hfill$\square$
+\end{itemize}
+
+Fig.~\ref{fig:tradeoff} illustrates the three-way trade-off curve and its boundary behavior, showing agreement with the trend of Eq.~\eqref{eq:tradeoff}.
+
+\subsection{Adaptive Selection of the TGM Truncation Bound $B$}
+
+The selection of the truncation bound $B$ requires a trade-off between privacy protection and computational efficiency:
+
+\begin{itemize}
+  \item \textbf{$B$ too large}: $R \to 1$, so the correction factor approaches unity, but the noise support becomes excessively large, which may cause the state to exceed physical limits or lead to numerical overflow.
+  \item \textbf{$B$ too small}: $R \ll 1$, so the correction factor $1/R \gg 1$, requiring the base variance to be substantially inflated in order to compensate for the truncation loss, thereby reducing the efficiency of privacy protection.
+\end{itemize}
+
+\textbf{Adaptive heuristic:} If the nominal per-event budget $\bar{\varepsilon}_i(t)$ exhibits a large dynamic range, the following adaptive strategy may be adopted:
+\begin{equation}
+    B(t) = 3 \cdot \max_{i\in\mathcal{V}} \sigma_i(t) + \delta_B,
+\end{equation}
+where $\delta_B > 0$ is a safety margin. In practical deployment, $\sigma_i(t)$ can be estimated online via an exponentially weighted moving average; only when $z_i(t)=1$ does the above expression correspond to the TGM noise scale used in an actual release.
+
+\begin{budgetlemma}[Budget Accounting Lemma]\label{thm:privacy}
+  Under the event-level budget management strategy of Section~4.6, if node $i$ calibrates its noise on each actual release event using $\varepsilon_i^{\mathrm{tx}}(t)$ as the \textbf{target event-level privacy level}, then for any time horizon $T$, the cumulative consumed target budget satisfies
+  \begin{equation}\label{eq:rho_cond}
+    \varepsilon_i^{\mathrm{used}}(T)=\sum_{t=0}^{T-1}\varepsilon_i^{\mathrm{tx}}(t)\leq\egl,
+  \end{equation}
+  where $\egl$ is the prescribed global target budget upper bound. Consequently, the total target budget allocated to all \textbf{actual release events} of node $i$ over $[0,T)$ does not exceed $\egl$. If node $i$ releases $T_{\mathrm{comm}}$ times in total and adopts a uniform allocation, then
+  \begin{equation}
+    \varepsilon_{\mathrm{per}}=\frac{\egl}{T_{\mathrm{comm}}},
+  \end{equation}
+  which is consistent with the experimental convention of Section~VI. If a specific local privacy mechanism that verifiably satisfies the target level is subsequently selected for each per-event budget $\varepsilon_i^{\mathrm{tx}}(t)$, then the cumulative budget result given by this lemma can be directly used as input to the composition analysis.
+\end{budgetlemma}
+
+\begin{proof}[Proof]
+\textbf{Step 1 (Charging only actual release events):} By the definition in Section~4.6, if $z_i(t)=0$, then node $i$ produces no new external release at time $t$, and
+\[
+  \varepsilon_i^{\mathrm{tx}}(t)=0.
+\]
+Therefore, no new target budget is allocated during silence periods; only actual broadcast events with $z_i(t)=1$ enter the budget accumulation.
+
+\textbf{Step 2 (Stepwise projection guarantees no budget overdraft):} For any time $t$,
+\[
+  \varepsilon_i^{\mathrm{tx}}(t)\leq \egl-\varepsilon_i^{\mathrm{used}}(t).
+\]
+Hence, from the recursion
+\[
+  \varepsilon_i^{\mathrm{used}}(t+1)=\varepsilon_i^{\mathrm{used}}(t)+\varepsilon_i^{\mathrm{tx}}(t)
+\]
+it follows that
+\[
+  \varepsilon_i^{\mathrm{used}}(t+1)\leq \egl.
+\]
+By mathematical induction, $\varepsilon_i^{\mathrm{used}}(T)\leq\egl$ holds for any $T$.
+
+\textbf{Step 3 (Event-level budget accumulation):} The entire target budget allocated to node $i$ over the horizon $[0,T)$ originates solely from the set of actual release events
+\[
+  \mathcal{T}_i^{\mathrm{tx}}(T)=\{t\in[0,T-1]: z_i(t)=1\}.
+\]
+By definition, the total target budget of all actual release events satisfies
+\[
+  \sum_{t\in\mathcal{T}_i^{\mathrm{tx}}(T)}\varepsilon_i^{\mathrm{tx}}(t)
+  =\sum_{t=0}^{T-1}\varepsilon_i^{\mathrm{tx}}(t)
+  =\varepsilon_i^{\mathrm{used}}(T)
+  \leq \egl.
+\]
+
+\textbf{Step 4 (Consistency with the experimental convention):} If node $i$ performs $T_{\mathrm{comm}}$ actual releases throughout the experiment and adopts a uniform budget allocation, then each actual release uses
+\[
+  \varepsilon_{\mathrm{per}}=\frac{\egl}{T_{\mathrm{comm}}},
+\]
+which is consistent with the budget accounting convention adopted in Table~\ref{tab:main} of Section~VI.
+\end{proof}
+
+\begin{proposition}[Scenario-Based Energy-Saving Estimation Formula]\label{thm:energy}
+  Let $E_0$ denote the baseline energy consumption of the conventional periodic communication method, defined as
+  \begin{equation}\label{eq:E0}
+    E_0 = T_{\max}\bigl[\alpha|\mathcal{N}_i|(P_{\mathrm{TX}}+P_{\mathrm{RX}}) + \beta(\bar{\sigma}^2 + \bar{u}^2)\bigr],
+  \end{equation}
+  where $\bar{\sigma}^2 = C_i^2/(2\varepsilon_{\min}^2)$ is the noise variance corresponding to the minimum privacy budget, $\bar{u}^2$ is the average control input energy, and $T_{\max}$ is the total operating time; and let
+  \[
+    \begin{aligned}
+      E_{\mathrm{comm},0}
+      &=T_{\max}\alpha|\mathcal{N}_i|(P_{\mathrm{TX}}+P_{\mathrm{RX}}),\\
+      E_{\mathrm{comp},0}
+      &=T_{\max}\beta(\bar{\sigma}^2+\bar{u}^2),
+    \end{aligned}
+  \]
+  and let $\gamma_c\geq1$ be the computational energy consumption scaling factor relative to the periodic baseline. Then, under the \EPAS{} dual-triggering mechanism, the long-term average energy consumption of node $i$ can be described by the following scenario-based estimation expression:
+  \begin{equation}\label{eq:energy_bound}
+    \bar{E}_i \lesssim \fmax \cdot E_{\mathrm{comm},0} + \gamma_c \cdot E_{\mathrm{comp},0}
+    = E_0 \cdot \bigl(1-\delta_E^{\mathrm{est}}\bigr),
+  \end{equation}
+  where
+  \begin{equation}\label{eq:delta_est}
+    \delta_E^{\mathrm{est}}
+    =
+    1-\frac{\fmax \cdot E_{\mathrm{comm},0} + \gamma_c \cdot E_{\mathrm{comp},0}}{E_{\mathrm{comm},0} + E_{\mathrm{comp},0}}.
+  \end{equation}
+  This expression provides a \textbf{scenario-based estimation formula based on the trigger-rate upper bound and the computational-overhead ratio}; the specific energy-saving ratio should be reported separately from the experimental results of Section~VI rather than derived rigorously from this proposition alone.
+\end{proposition}
+
+\begin{proof}[Derivation]
+\textbf{Step 1 (Definition and composition of $E_0$):}
+The baseline energy consumption $E_0$ corresponds to the periodic method that communicates at every step. Over the total time $T_{\max}$, the communication energy is:
+\begin{equation}
+  E_{\mathrm{comm},0} = T_{\max} \cdot \alpha|\mathcal{N}_i|(P_{\mathrm{TX}}+P_{\mathrm{RX}}),
+\end{equation}
+where $\alpha$ is the per-bit energy coefficient, $|\mathcal{N}_i|$ is the number of neighbors, and $P_{\mathrm{TX}}$ and $P_{\mathrm{RX}}$ are the transmit and receive powers, respectively.
+
+The computational energy is the energy consumed by control-law computation and noise generation at each step:
+\begin{equation}
+  E_{\mathrm{comp},0} = T_{\max} \cdot \beta(\bar{\sigma}^2 + \bar{u}^2),
+\end{equation}
+where $\beta$ is the computational energy coefficient, $\bar{\sigma}^2$ is the privacy noise variance, and $\bar{u}^2$ is the control input energy.
+
+\textbf{Step 2 (Expected communication energy):}
+Under the \EPAS{} framework, the actual number of communications is determined by the trigger rate. By Proposition~\ref{thm:trigger}, the empirical trigger rate within a quasi-stationary window can be upper bounded approximately by $\fmax$, so the expected number of communications can be conservatively estimated as:
+\begin{equation}
+  \mathbb{E}[K_{\mathrm{comm}}] = f_i \cdot T_{\max} \lesssim \fmax \cdot T_{\max}.
+\end{equation}
+The expected communication energy is:
+\begin{equation}\label{eq:E_comm}
+  \mathbb{E}[E_{\mathrm{comm},i}] = \mathbb{E}[K_{\mathrm{comm}}] \cdot \alpha|\mathcal{N}_i|(P_{\mathrm{TX}}+P_{\mathrm{RX}}) \lesssim \fmax \cdot E_{\mathrm{comm},0}.
+\end{equation}
+
+\textbf{Step 3 (Expected computational energy):}
+The computational energy comprises two parts: privacy noise generation and control-law computation.
+
+For the privacy noise, the average variance is reduced under the adaptive budget. By Section~4.6, the nominal per-event budget $\bar{\varepsilon}_i(t) \geq \varepsilon_{\min}$, and therefore:
+\begin{equation}
+  \mathbb{E}[\sigma_i^2(t)] = \frac{C_i^2}{2\mathbb{E}[\bar{\varepsilon}_i^2(t)]} \cdot \frac{1}{R} \leq \frac{C_i^2}{2\varepsilon_{\min}^2} \cdot \frac{1}{R} = \frac{\bar{\sigma}^2}{R}.
+\end{equation}
+When $B \geq 3\sigma_{\max}$, we have $R \geq 0.997$, so the correction cost is less than $0.3\%$.
+
+For the control input, Theorem~\ref{thm:conv} gives
+\begin{equation}
+  \mathbb{E}[\|u_i(t)\|^2] \leq \frac{\kmax^2 \lN^2 \Gamma(K_{\max})}{1-\rho},
+\end{equation}
+where $\Gamma(K_{\max})$ is given by Eq.~\eqref{eq:Gamma}.
+
+Hence the expected computational energy:
+\begin{equation}\label{eq:E_comp}
+  \mathbb{E}[E_{\mathrm{comp},i}] = T_{\max} \cdot \beta\bigl(\mathbb{E}[\|w_i\|^2] + \mathbb{E}[\|u_i\|^2]\bigr) \leq \gamma_c \cdot E_{\mathrm{comp},0},
+\end{equation}
+where $\gamma_c$ is the computational energy scaling factor, typically $\gamma_c \approx 1$ (since AR prediction introduces a small amount of additional computation).
+
+\textbf{Step 4 (Derivation of the total energy upper bound):}
+Combining the communication and computational energy, the total expected energy consumption of node $i$ is:
+\begin{equation}
+  \bar{E}_i = \mathbb{E}[E_{\mathrm{comm},i}] + \mathbb{E}[E_{\mathrm{comp},i}].
+\end{equation}
+By Eqs.~\eqref{eq:E_comm} and~\eqref{eq:E_comp}:
+\begin{equation}
+  \bar{E}_i \lesssim \fmax \cdot E_{\mathrm{comm},0} + \gamma_c \cdot E_{\mathrm{comp},0}.
+\end{equation}
+
+Define the energy-saving ratio $\delta_E$ to satisfy:
+\begin{equation}
+  1 - \delta_E^{\mathrm{est}} = \frac{\fmax \cdot E_{\mathrm{comm},0} + \gamma_c \cdot E_{\mathrm{comp},0}}{E_{\mathrm{comm},0} + E_{\mathrm{comp},0}}.
+\end{equation}
+The expression above should be used only after substituting hardware-specific communication and computation coefficients. In the experiments reported in Table~\ref{tab:main}, the model-based relative energy of \EPAS{} is
+\begin{equation}
+  \frac{E_{\EPAS}}{E_0}=0.088,
+\end{equation}
+which corresponds to an observed saving of $1-0.088=0.912$, i.e., about $91.2\%$, relative to the periodic baseline. Since $\fmax$, $\gamma_c$, the topology scale, and the prediction error vary across scenarios, Section~VI reports this value as a \textbf{simulation observation} rather than deriving a universal saving ratio from this proposition alone.
+\end{proof}
+
+% ---------------------------------------------------------------------------
+
+\section{Experimental Design and Results}
+
+\subsection{Experimental Setup}
+
+The experiments were conducted on a Python 3.9 platform (NumPy 1.24, NetworkX 3.1, SciPy 1.11), running on an Intel Core i7-12700 with 32~GB of memory. The network size is $N\in\{50,100,200,500\}$, and two topologies are considered: Erd\H{o}s--R\'enyi (edge probability 0.3) and Watts--Strogatz small-world (average degree 6, rewiring probability 0.1). The communication delay is $\delta\sim U[0,300]$~ms, the packet-loss rate is $\ploss\in\{10\%,20\%,40\%\}$, and $\egl=1.0$. For the \TGM{}: $B=3\sigma_{\max}$, $R\geq0.997$, with an accuracy loss below $0.3\%$. The disturbance is $d_i(t)\sim U[-0.01,0.01]$; $K_{\max}=20$ (serving as a timeout safety net, with the target trigger rate of $0.1$ achieved primarily through state-deviation triggering). Main benchmark, robustness, and scalability cells use 50 repeats; controlled ablation and parameter-sensitivity scans use 8 repeats. Mean values are reported for scalability results, and mean $\pm$ standard deviation is reported for the main paired benchmark where repeated variations are shown. Unless otherwise stated, the results are simulation-based; the energy values are computed from the model in Section~V-F rather than measured from embedded hardware.
+
+\textbf{Note on the statistical scope of the figures and tables:} Table~\ref{tab:main}, Table~\ref{tab:scale}, Figure~\ref{fig:fairness}, Figure~\ref{fig:trigger}, and Figure~\ref{fig:ar_residual} are derived from the final reconstruction and evaluation outputs of this work ($N{\le}500$, 2250 runs). Figure~\ref{fig:tradeoff} is a normalized theoretical envelope derived from Eq.~\eqref{eq:tradeoff}. Figure~\ref{fig:ablation} and Figure~\ref{fig:sensitivity} are controlled supplemental scans using 8 repeats for per-module and parameter-trend analysis; they do not replace the main paired benchmark tables.
+
+\subsection{Baseline Methods and Fixed-Budget Comparison Protocol}
+
+\textbf{Equivalent global target-budget benchmark:} For fairness, all value-channel calibrated methods use uniform event-level budget allocation $\eper=\egl/T_{\mathrm{comm}}$ under $\egl=1.0$; see Lemma~\ref{lem:earlystop} in Appendix~\ref{app:earlystop} for why early stopping is excluded. This is an \textbf{aggregate benchmark-accounting convention}: it compares completed trajectories under the same total target budget and is not meant to imply that a deployed node knows the final communication count in advance. This convention maintains closed-loop control over the full experimental horizon while comparing communication strategies under the same total target budget. A complementary decomposition in Section~VI-E separates budget-allocation effects from other algorithmic effects.
+
+Four baseline methods are considered: (1) \textbf{Periodic}: full-volume communication at a fixed period; (2) \textbf{Standard ET}: event-triggered communication with a fixed threshold; (3) \textbf{Privacy-aware}: \TGM{} target-privacy-level calibration with a fixed threshold and no \AR{} prediction; (4) \textbf{Energy-aware}: adaptive threshold without value-channel privacy calibration. The Energy-aware method is retained only as a non-calibrated engineering reference in the 40\% packet-loss stress test and is therefore discussed below rather than placed in the fixed-target-budget comparison table.
+
+\subsection{Main Comparative Experimental Results}
+
+
+\begin{table}[htbp]
+\caption{Main comparison at $N=100$ and $\egl=1.0$ (mean $\pm$ standard deviation over 50 paired repetitions).}
+\label{tab:main}
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}lXXXX@{}}
+\toprule
+Method & Privacy MSE & Communication count & Relative energy ($E/E_0$) & 40\% loss MSE \\
+\midrule
+Periodic        & $3.70\!\times\!10^{-3}\!\pm\!2.3\!\times\!10^{-4}$ & 15,000      & 1.000 & $6.4\!\times\!10^{-3}$ \\
+Standard ET     & $5.04\!\times\!10^{-3}\!\pm\!5.0\!\times\!10^{-4}$ & $6814\pm239$  & 0.454 & $8.7\!\times\!10^{-3}$ \\
+Privacy-aware   & $2.06\!\times\!10^{-3}\!\pm\!1.3\!\times\!10^{-4}$ & $12863\pm51$ & 0.858 & $4.5\!\times\!10^{-3}$ \\
+\textbf{E-PAS}  & $\bm{1.43\!\times\!10^{-4}\!\pm\!1.2\!\times\!10^{-5}}$ & $\bm{1218\pm10}$ & $\bm{0.088}$ & $\bm{2.9\!\times\!10^{-4}}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+\textbf{Mechanistic explanation of the performance gap:}
+Under the fixed global budget $\egl=1.0$, \EPAS{} produces fewer genuine publication events, so the aggregate accounting convention allocates a larger effective budget to each actual release than to the high-trigger-rate baselines. The high-trigger-rate baselines dilute the same global budget over more releases, resulting in larger TGM noise per publication. In the reconstruction experiments ($N=100$, 50 repeats, with seed-paired comparison), the steady-state MSE of \EPAS{} improves by about $14\times$ relative to the strongest calibrated baseline Privacy-aware, and by $26$--$35\times$ relative to Periodic and Standard ET, with a paired Wilcoxon $p<10^{-14}$ and a paired Cohen's $d\in[-16,-9.9]$ (see Table~\ref{tab:main}). It should be emphasized that this gap arises in part from the event-level budget reallocation enabled by sparse triggering---which is precisely the system-level design objective of \EPAS{}; Figure~\ref{fig:fairness} provides a separate budget-accounting decomposition of this effect.
+
+\subsection{Controlled Supplemental Ablation}
+
+To avoid attribution based solely on the nearest-neighbor baselines, this work additionally provides a set of \textbf{controlled supplemental ablations}. This ablation uses a simplified closed-loop simulator consistent with Eq.~\eqref{eq:dynamics} and the module definitions in Section~IV: the scalar node states follow the same discrete-time update form, the neighborhood control still adopts the average-coupling structure of ``neighbor estimate minus local state,'' and the same global-budget constraint and random packet-loss mechanism are retained. The experimental setting takes $N=100$, a total of 180 steps, $\ploss=20\%$, and $\egl=1.0$, with a fixed random seed and 8 repeats. Unlike the main table, this serves only as a \textbf{controlled supplemental ablation}, intended to answer ``what happens after a given module is removed,'' and does not replace the main experimental results in Table~\ref{tab:main}.
+
+Figure~\ref{fig:ablation} presents the comparison of the full \EPAS{} against four controlled variants. To keep each variant a runnable closed-loop controller, the minimal necessary adjustments are made to the ablation definitions: \texttt{w/o AR} replaces silence prediction with zero-order hold and shortens the timeout window to 4 steps; \texttt{w/o budget} replaces the event-level adaptive budget with a fixed nominal budget; \texttt{w/o ACG} replaces the adaptive gain with a fixed gain; and \texttt{w/o dual-trigger} removes the timeout enforcement, retaining only state-deviation triggering.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures_polished/controlled_ablation.pdf}
+\caption{Controlled supplemental ablation under the same simplified E-PAS simulator. The full E-PAS stack is compared against four variants in which a single module is replaced or removed while keeping the remaining closed-loop structure unchanged. This figure is used only for controlled attribution and does not replace the main experiments in Table~\ref{tab:main}. This ablation uses a different simplified simulator than Table~\ref{tab:main} with smaller repetition count (8). Per-module quantitative attribution is unstable across simulators; treat as qualitative.}
+\label{fig:ablation}
+\end{figure}
+
+The no-AR variant degrades strongly, showing that silence prediction is essential in this controlled setting. The fixed-budget, fixed-gain, and state-only variants are comparable under this small 8-repeat scan, indicating that these modules mainly contribute to budget regulation, stability control, and robust operation rather than to a guaranteed MSE reduction in every simplified ablation cell. Therefore, Fig.~\ref{fig:ablation} is used as supplemental qualitative attribution rather than as a definitive per-module ranking.
+
+\subsection{Supplemental Analysis of Budget-Accounting Effects}
+
+To distinguish ``algorithmic-mechanism gains'' from ``budget-accounting gains,'' Figure~\ref{fig:fairness} provides an analytical comparison under three privacy interpretations. The left panel shows the actual communication count of each method under the fixed global budget $\egl=1.0$; the middle panel converts this into the per-genuine-publication-event budget $\varepsilon_{\mathrm{tx}}$; and the right panel, conversely, fixes the per-event budget of \EPAS{} and computes the global budget that the other methods would require to maintain the same noise level. It can be seen that Periodic, Privacy-aware, and Standard ET respectively require about $12.3\times$, $10.6\times$, and $5.6\times$ the global budget. This shows that part of the accuracy gap in the main table does originate from the budget reallocation enabled by sparse triggering; however, this is precisely the system-level design objective of \EPAS{}, rather than an additional evaluation bias. Accordingly, this work states the advantage more precisely as: \textbf{under a fixed total-budget constraint, trading fewer genuine publications for higher event-level budget efficiency.}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures_polished/budget_fairness_accounting.pdf}
+\caption{Budget-accounting fairness analysis derived from Table~\ref{tab:main}. Left: observed communication count under fixed global budget. Middle: implied event-level privacy budget under the same global budget. Right: required global budget if every method were forced to use the same event-level budget as E-PAS.}
+\label{fig:fairness}
+\end{figure}
+
+\subsection{Scalability Analysis}
+
+
+\begin{table}[htbp]
+\caption{Ideal and scalability results for E-PAS across different network sizes.}
+\label{tab:scale}
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}cXXXX@{}}
+\toprule
+$N$ & Ideal MSE & Communication reduction & Relative energy & Per-node per-step runtime (ms) \\
+\midrule
+50  & $1.23\!\times\!10^{-4}$ & $93.1\%$ & 0.074 & 0.071 \\
+100 & $1.24\!\times\!10^{-4}$ & $93.1\%$ & 0.074 & 0.104 \\
+200 & $1.24\!\times\!10^{-4}$ & $93.1\%$ & 0.074 & 0.139 \\
+500 & $1.25\!\times\!10^{-4}$ & $93.1\%$ & 0.074 & 0.382 \\
+\bottomrule
+\end{tabularx}
+\vspace{2mm}
+\footnotesize
+\raggedright The accuracy, communication, and energy ratios are insensitive to network size. The per-node per-step runtime grows with $N$, reflecting the current dense $O(N^2)$ audit-oriented implementation rather than the sparse algorithmic form.
+\end{table}
+
+
+\subsection{Parameter Sensitivity and Calibration Scans}\label{sec:sensitivity}
+
+Figure~\ref{fig:sensitivity} presents the 8-repeat sensitivity scans of four key parameters of \EPAS{} (AR order $p$, budget step $\rho$, timeout $K_{\max}$, and truncation bound $B$). The $K_{\max}$ scan reveals the importance of decoupling the timeout from the target trigger rate: when the scan uses $K_{\max}=8$, below the target inter-trigger interval $1/f_{\mathrm{target}}=10$ (with $f_{\mathrm{target}}=0.1$), the threshold $\theta$ saturates and triggering degenerates into near-periodic behavior; whereas for $K_{\max}\geq 12$ the system enters a stable plateau (with $\theta$ falling back to a low level, state-deviation triggering dominating, and communication and error varying smoothly with $K_{\max}$), so this work takes $K_{\max}=20$ as a robust safety net on this plateau. The $p$ scan shows that the MSE is lowest at $p\in\{3,4\}$, supporting the choice of $p=3$; the $B$ scan indicates that for $B\geq 3\sigma$ the retained probability mass is $R\approx 0.997$ and the variance amplification is only about $0.3\%$, supporting the setting $B=3\sigma_{\max}$ adopted in this work.
+
+For $p\in\{1,\dots,5\}$, the steady-state MSE is lowest at $p\in\{3,4\}$ (about $3.1$--$3.3\times10^{-4}$), the communication count rises gently with $p$ (from about $1858$ to $1902$), and the MSE rebounds slightly at $p=5$, reflecting the diminishing marginal returns of high-order over-parameterization. For $\rho\in\{0.10,\dots,0.70\}$, the MSE is lowest in the interval $\rho\in[0.10,0.25]$ (about $2.8$--$3.0\times10^{-4}$) with stable communication; as $\rho$ increases, the MSE rises monotonically, reaching about $1.2\times10^{-3}$ at $\rho=0.70$ accompanied by increased communication. Overall, $p=3$ together with a small-to-moderate $\rho$ constitutes a \textbf{robust rather than uniquely optimal} operating point.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures_polished/parameter_sensitivity_scan.pdf}
+\caption{Parameter sensitivity scans (E-PAS, 8-repeat shared simulator): AR order $p$, budget step $\rho$, timeout $K_{\max}$, and truncation bound $B$. Each panel reports MSE and communication count normalized by the minimum value within the corresponding scan. $K_{\max}\!\geq\!12$ enters a stable plateau where the deviation trigger dominates ($K_{\max}\!=\!8$ saturates $\theta$); $p\!\in\!\{3,4\}$ gives the lowest MSE; $B\!\geq\!3\sigma$ yields retained mass $R\!\approx\!0.997$.}
+\label{fig:sensitivity}
+\end{figure}
+
+\subsection{Energy Savings and Scenario Estimation}
+
+Relative to the always-communicating periodic baseline, \EPAS{} reduces model-based energy consumption to approximately $0.09\times$ (a saving of roughly $91\%$). This ratio is derived from the simulation observations in Section~VI rather than rigorously deduced from Proposition~\ref{thm:energy} alone, and it uses the per-step full-transmission periodic baseline as the denominator. It should not be interpreted as a hardware-measured energy-saving ratio. If a city-scale deployment scenario is assumed and a carbon emission factor of 0.5~kg~CO$_2$/kWh is adopted, this energy-consumption ratio can yield a discussion-oriented scenario estimate of annual emission reductions; the specific tonnage depends on the deployment scale, communication load, and operating duration, and we do not directly extrapolate the 500-node simulation into an engineering conclusion. For larger-scale deployments (e.g., industrial IoT), a separate assessment in conjunction with specific hardware power-consumption models is still required.
+
+%% (figure)
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_polished/trigger_rate_validation.pdf}
+\caption{Measured per-node trigger rate vs. the timeout floor $1/K_{\max}\!=\!0.05$ and the quasi-stationary envelope, across three benchmarks (ER ideal, ER privacy, WS privacy). The measured rate exceeds the timeout floor in every case, i.e. the state-deviation trigger---not the timeout safety net---drives communication.}
+\label{fig:trigger}
+\end{figure}
+
+\subsection{Trigger-Rate Validation (Comparison with Proposition~\ref{thm:trigger})}
+
+In this work, the timeout $K_{\max}$ is set to $20$ (i.e., the timeout floor $1/K_{\max}=0.05$, strictly below the target trigger rate of $0.1$), so that it acts as a rare \textbf{safety net} rather than the primary triggering mechanism; in this way, the state-deviation trigger must actively operate to maintain the target rate, thereby genuinely fulfilling the role of ``adaptive event-triggered'' communication. The reconstruction experiments corroborate this: \EPAS{} attains a measured average trigger rate of approximately $0.07$--$0.10$ (varying with topology), markedly above the timeout floor of $1/K_{\max}=0.05$, with the excess contributed precisely by the state-deviation trigger; the average inter-trigger interval is approximately $10$--$16$ steps, \textbf{far smaller than the safety net $K_{\max}=20$}, indicating that the vast majority of releases are driven by the deviation trigger before the timeout is reached. Correspondingly, the adaptive threshold $\theta$ stabilizes at a low value (approximately $0.002$--$0.014$) and self-adjusts according to the topology (lower on dense Erd\H{o}s--R\'enyi graphs and higher on clustered Watts--Strogatz graphs) to maintain the target trigger rate, rather than saturating at its upper bound. It should be noted that the quasi-stationary envelope $1/K_{\max}+\Mstep^2/\theta^*$ in Proposition~\ref{thm:trigger} remains an approximate characterization rather than a strict upper bound. Fig.~\ref{fig:trigger} compares the measured trigger rate against the timeout floor and this envelope.
+
+\subsection{AR Residuals and the Silent Horizon (Comparison with Assumption~\ref{ass:lipschitz})}
+
+In the reconstruction experiments ($N=100$, 50 repetitions), the \AR{} prediction residual is approximately stationary over the silent horizon: the mean absolute residual decreases slowly from approximately $0.020$ (1 silent step) to approximately $0.016$ (19 silent steps), exhibiting no linear growth with the number of silent steps. This indicates that, under the parameters and disturbance levels considered in this work, the linear residual-growth term in Assumption~\ref{ass:lipschitz} is a \textbf{conservative upper bound} rather than the actual trend, and \AR{} silent prediction remains stable within the relatively long silent window of $K_{\max}=20$. Fig.~\ref{fig:ar_residual} is plotted from this reconstruction data.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_polished/ar_residual_growth.pdf}
+\caption{AR residual growth validation: measured mean absolute AR residual over the silent prediction horizon.}
+\label{fig:ar_residual}
+\end{figure}
+
+\subsection{Robustness and Convergence Speed}
+
+Under the adverse conditions of 40\% packet loss plus 300~ms delay, the steady-state MSE of every method remains finite without divergence, yet \EPAS{} attains the lowest error: \EPAS{} approximately $2.9\!\times\!10^{-4}$, Energy-aware approximately $3.3\!\times\!10^{-3}$, Privacy-aware approximately $4.5\!\times\!10^{-3}$, Periodic approximately $6.4\!\times\!10^{-3}$, and Standard-ET approximately $8.7\!\times\!10^{-3}$. The calibrated methods are evaluated under the same value-channel target-budget protocol, while Energy-aware is retained only as a non-calibrated engineering reference. All methods converge rapidly to MSE$<0.05$ within the 150-step horizon (typically about $3$ steps); the \AR{} silent prediction of \EPAS{} significantly outperforms the direct-transmission baseline under high packet loss, achieving the best robust accuracy while substantially reducing communication.
+
+\section{Discussion and Limitations}
+
+This study is positioned as a simulation-based method validation under explicit privacy-budget and energy-model assumptions. The following limitations define the intended scope of the claims.
+
+(1) \textbf{Privacy scope and truncation selection}: The \TGM{} truncation boundary $B$ requires prior knowledge or online estimation of $\sigma_{\max}$, especially when the privacy-budget range is wide. Moreover, \TGM{} calibrates the \emph{value channel} of each broadcast; the trigger timing itself is a side channel not covered by the current value-noise calibration. Extending the value-channel calibration to a full sequence-level $(\varepsilon,\delta)$ guarantee that also accounts for trigger instants is left to future work.
+
+(2) \textbf{Graph-dependent stationarity and trigger-rate deviations}: Assumption~\ref{ass:ergodic} may fail on extremely sparse graphs ($\lambda_2(\bar{L})\to0$) or in highly non-stationary environments. Conversely, on dense and strongly connected graphs, the state deviation may rarely exceed the threshold, so the measured trigger rate can fall below the target rate; this reflects lower communication demand rather than a failure of the mechanism.
+
+(3) \textbf{Prediction-model scope}: The \AR{} predictor is intentionally lightweight but has limited accuracy under strongly nonlinear or rapidly time-varying dynamics. In such cases, $K_{\max}$ should be reduced, or the predictor should be replaced with a nonlinear alternative such as NARX or LSTM, with the additional computation included in the energy model.
+
+(4) \textbf{Experimental extrapolation}: The evaluation uses synthetic Erd\H{o}s--R\'enyi and Watts--Strogatz graphs with $N\leq500$ and a 150-step horizon. The city-scale emission figures are scenario estimates based on model-based energy ratios and a specified carbon factor; they cannot substitute for system-level measurements on real hardware or deployment-specific topology and traffic models.
+
+(5) \textbf{Operating regime and implementation scaling}: The accuracy advantage of \EPAS{} is specific to the fixed-privacy-budget, lossy operating regime; without privacy noise, a simple event-triggered baseline may communicate less. The released implementation also keeps dense $O(N^2)$ receiver-side state for auditability, whereas the $O(d+p^2)$ entry in Table~\ref{tab:complexity} describes the achievable sparse algorithmic form rather than the measured scaling of the current implementation.
+
+% ---------------------------------------------------------------------------
+
+\section{Conclusion}
+
+This paper studied state synchronization in distributed IoT sensor networks under packet loss, delay, communication sparsity, energy constraints, and fixed value-channel target-budget accounting. The proposed \EPAS{} framework combines bounded truncated-Gaussian calibration, \AR{} silence prediction, adaptive consensus-gain tuning, and adaptive event-triggered communication. The analysis gives a sufficient mean-square convergence bound to an error floor, a settling-time bound for entering a target mean-square error band, and a quasi-stationary engineering characterization of the trigger rate. The budget analysis further clarifies how the event-level target budget is accumulated without exceeding the prescribed global target budget.
+
+The simulation results indicate that \EPAS{} is effective in the intended operating regime: a fixed global target budget, lossy communication, and sparse event-triggered releases. Under this regime, \EPAS{} obtains the lowest synchronization error among the evaluated baselines, remains robust under $40\%$ packet loss, and reduces communication and model-based energy consumption relative to the always-on periodic baseline. These results support the use of prediction-assisted sparse triggering as a practical method for improving budget efficiency in distributed synchronization. The reported energy and emission results are model-based scenario estimates and should be validated on hardware before being used as deployment-level conclusions.
+
+Future work will proceed in three directions: (i) extending the present value-channel calibration to a formal sequence-level privacy analysis that also accounts for trigger timing; (ii) selecting the truncation bound $B$ adaptively under retained-mass and stability constraints; and (iii) validating the controller on embedded sensor nodes or public IoT traces to measure real communication energy, latency, packet loss, and timing-side-channel effects.
+
+
+% ---------------------------------------------------------------------------
+\section*{Declarations}
+
+\textbf{Acknowledgments.} The authors thank their respective institutions for providing the academic environment for this research.
+
+\textbf{Funding.} This research received no specific grant from any funding agency in the public, commercial, or not-for-profit sectors.
+
+\textbf{Institutional Review Board Statement.} Not applicable.
+
+\textbf{Informed Consent Statement.} Not applicable.
+
+\textbf{Data Availability Statement.} Processed results, configuration notes, random-seed information, manuscript source, and figure assets are available in the public GitHub repository at \url{https://github.com/insistgang/epas-iot-sensor-sync}. Full raw simulation logs and expanded executable experiment materials are available from the corresponding author upon reasonable request.
+
+\textbf{Code Availability Statement.} Plotting scripts and reproducibility files are available at \url{https://github.com/insistgang/epas-iot-sensor-sync}. Additional implementation materials are available from the corresponding author upon reasonable request.
+
+\textbf{Author Contributions.} Conceptualization, Gang Liu and Xin Zhang; methodology, Gang Liu; software, Gang Liu; validation, Gang Liu; formal analysis, Gang Liu; supervision, Xin Zhang; writing---original draft preparation, Gang Liu; writing---review and editing, Gang Liu and Xin Zhang. All authors have read and agreed to the submitted version of the manuscript.
+
+\textbf{Conflicts of Interest.} The authors declare no conflicts of interest.
+
+\textbf{Use of AI and AI-Assisted Technologies.} AI-assisted tools were used for language editing and figure-style refinement under the authors' supervision. The authors reviewed and verified all scientific content, equations, experiments, and conclusions.
+
+\textbf{Permissions.} All figures and tables in this manuscript are generated by the authors for this study. No third-party copyrighted material is reproduced.
+
+% ---------------------------------------------------------------------------
+\appendix
+\renewcommand{\thelemma}{\Alph{section}.\arabic{lemma}}
+\section{Early-Stopping Baseline Lemma}\label{app:earlystop}
+
+\begin{lemma}[Early stopping induces mean-square divergence]\label{lem:earlystop}
+  Under an external disturbance $d_i(t)\sim U[-c,c]$ (with $c=0.01>0$), a system employing an early-stopping strategy degenerates into open-loop operation after the budget-exhaustion instant $\Tstop$. In the open-loop phase, the state difference $\Delta_{ij}(t)=x_i(t)-x_j(t)$ constitutes a zero-mean random-walk process whose second moment grows linearly in time.
+
+  \textbf{Detailed derivation:} Since $d_i(t)$ are i.i.d. with $E[d_i(t)]=0$ and $\Var[d_i(t)]=c^2/3$, for $t > \Tstop$ we have:
+  \begin{align}
+    \Delta_{ij}(t) &= \Delta_{ij}(\Tstop) + \sum_{s=\Tstop+1}^{t} (d_i(s) - d_j(s)),\\
+    \Var[\Delta_{ij}(t)] &= \Var[\Delta_{ij}(\Tstop)] \notag\\
+    &\quad + \sum_{s=\Tstop+1}^{t} (\Var[d_i(s)] + \Var[d_j(s)])\\
+    &= \Var[\Delta_{ij}(\Tstop)] + \frac{2c^2}{3}(t-\Tstop).
+  \end{align}
+
+  Consequently $\mathbb{E}[|\Delta_{ij}(t)|^2]\to+\infty$ as $t\to\infty$; that is, the early-stopping strategy leads to \textbf{mean-square error divergence}.
+
+  \textbf{Remark:} This lemma characterizes the limiting case in which the control loop is completely disconnected. In the finite-horizon experiments implemented in this work, a node whose budget is exhausted stops publishing but still maintains closed-loop consensus updates, so the mean-square divergence described here does not occur; in Table~\ref{tab:main}, every method converges to a finite steady-state error floor under a fixed global budget. Uniform budget allocation is therefore adopted as the unified benchmark configuration for comparing communication strategies under a fixed global budget. \hfill$\square$
+\end{lemma}
+
+% ---------------------------------------------------------------------------
+\begin{thebibliography}{31}
+\small
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+
+\bibitem{olfati2007}
+R. Olfati-Saber, J. A. Fax, and R. M. Murray, ``Consensus and cooperation in networked multi-agent systems,'' \emph{Proc. IEEE}, vol. 95, no. 1, pp. 215--233, 2007, doi: \url{https://doi.org/10.1109/JPROC.2006.887293}.
+
+\bibitem{jadbabaie2003}
+A. Jadbabaie, J. Lin, and A. S. Morse, ``Coordination of groups of mobile autonomous agents,'' \emph{IEEE Trans. Autom. Control}, vol. 48, no. 6, pp. 988--1001, 2003, doi: \url{https://doi.org/10.1109/TAC.2003.812781}.
+
+\bibitem{tabuada2007}
+P. Tabuada, ``Event-triggered real-time scheduling of stabilizing control tasks,'' \emph{IEEE Trans. Autom. Control}, vol. 52, no. 9, pp. 1680--1685, 2007, doi: \url{https://doi.org/10.1109/TAC.2007.904277}.
+
+\bibitem{heemels2012}
+W. P. M. H. Heemels, M. C. F. Donkers, and A. R. Teel, ``Periodic event-triggered control for linear systems,'' \emph{IEEE Trans. Autom. Control}, vol. 58, no. 4, pp. 847--861, 2013, doi: \url{https://doi.org/10.1109/TAC.2012.2220443}.
+
+\bibitem{heemels2012intro}
+W. P. M. H. Heemels, K. H. Johansson, and P. Tabuada, ``An introduction to event-triggered and self-triggered control,'' in \emph{Proc. IEEE CDC}, 2012, pp. 3270--3285, doi: \url{https://doi.org/10.1109/CDC.2012.6425820}.
+
+\bibitem{nowzari2019}
+C. Nowzari, E. Garcia, and J. Cortes, ``Event-triggered communication and control of networked systems for multi-agent consensus,'' \emph{Automatica}, vol. 105, pp. 1--27, 2019, doi: \url{https://doi.org/10.1016/j.automatica.2019.03.009}.
+
+\bibitem{liang2023edge_noise}
+Y. Liang, S. Phillips, and Y. Wang, ``Event-triggered privacy-preserving average consensus for multi-agent network,'' arXiv:2303.10547, 2023, doi: \url{https://doi.org/10.48550/arXiv.2303.10547}.
+
+\bibitem{wang2023moving_average}
+X. Wang and M. Chadli, ``A moving average dynamic event-triggered scheme for decentralized control of nonlinear interconnected systems,'' arXiv:2305.10053, 2023, doi: \url{https://doi.org/10.48550/arXiv.2305.10053}.
+
+\bibitem{zhou2026timer_sync}
+T. Zhou, C. Wang, M. Z. Win, J. K. Dauwels, M. H. Ahmed, and W. Saad, ``Timer synchronization in IoT networks,'' arXiv:2603.13570, 2026, doi: \url{https://doi.org/10.48550/arXiv.2603.13570}.
+
+\bibitem{dwork2006}
+C. Dwork, ``Differential privacy,'' in \emph{Proc. ICALP}, 2006, pp. 1--12, doi: \url{https://doi.org/10.1007/11787006_1}.
+
+\bibitem{dwork2014}
+C. Dwork and A. Roth, ``The algorithmic foundations of differential privacy,'' \emph{Found. Trends Theor. Comput. Sci.}, vol. 9, no. 3--4, pp. 211--407, 2014, doi: \url{https://doi.org/10.1561/0400000042}.
+
+\bibitem{balle2018}
+B. Balle and Y.-X. Wang, ``Improving the Gaussian mechanism for differential privacy: Analytical calibration and optimal denoising,'' in \emph{Proc. ICML}, 2018, pp. 394--403, arXiv:1805.06530, doi: \url{https://doi.org/10.48550/arXiv.1805.06530}.
+
+\bibitem{chen2022bounded}
+B. Chen and M. Hale, ``The bounded Gaussian mechanism for differential privacy,'' arXiv:2211.17230, 2022, doi: \url{https://doi.org/10.48550/arXiv.2211.17230}.
+
+\bibitem{fu2023truncated}
+J. Fu, Z. Sun, H. Liu, and Z. Chen, ``Truncated Laplace and Gaussian mechanisms of RDP,'' arXiv:2309.12647, 2023, doi: \url{https://doi.org/10.48550/arXiv.2309.12647}.
+
+\bibitem{andres2013}
+M. E. Andres et al., ``Geo-indistinguishability: Differential privacy for location-based systems,'' in \emph{Proc. ACM CCS}, 2013, pp. 901--914, doi: \url{https://doi.org/10.1145/2508859.2516735}.
+
+\bibitem{geng2016}
+Q. Geng and P. Viswanath, ``The optimal noise-adding mechanism in differential privacy,'' \emph{IEEE Trans. Inf. Theory}, vol. 62, no. 2, pp. 925--951, 2016, doi: \url{https://doi.org/10.1109/TIT.2015.2504967}.
+
+\bibitem{zaman2026iot_privacy}
+M. N. Zaman, A. Abdelgawad, A. Elmoogy, S. A. Al K. Tareq, and K. Yelamarthi, ``Privacy-preserving machine learning in IoT: Challenges and opportunities,'' arXiv:2604.07199, 2026, doi: \url{https://doi.org/10.48550/arXiv.2604.07199}.
+
+\bibitem{nozari2017tac}
+E. Nozari, P. Tallapragada, and J. Cortes, ``Differentially private distributed convex optimization via functional perturbation,'' \emph{IEEE Trans. Control Netw. Syst.}, vol. 5, no. 1, pp. 395--408, 2018, doi: \url{https://doi.org/10.1109/TCNS.2016.2614100}.
+
+\bibitem{nozari2017auto}
+E. Nozari, P. Tallapragada, and J. Cortes, ``Differentially private average consensus: Obstructions, trade-offs, and optimal algorithm design,'' \emph{Automatica}, vol. 81, pp. 221--231, 2017, doi: \url{https://doi.org/10.1016/j.automatica.2017.03.016}.
+
+\bibitem{duchi2013}
+J. C. Duchi, M. I. Jordan, and M. J. Wainwright, ``Local privacy and statistical minimax rates,'' in \emph{Proc. FOCS}, 2013, pp. 429--438, doi: \url{https://doi.org/10.1109/FOCS.2013.53}.
+
+\bibitem{huang2012}
+Z. Huang, S. Mitra, and G. Dullerud, ``Differentially private iterative synchronous consensus,'' in \emph{Proc. ACM WPES}, 2012, pp. 81--90, doi: \url{https://doi.org/10.1145/2381966.2381978}.
+
+\bibitem{mo2017}
+Y. Mo and R. M. Murray, ``Privacy preserving average consensus,'' \emph{IEEE Trans. Autom. Control}, vol. 62, no. 2, pp. 753--765, 2017, doi: \url{https://doi.org/10.1109/TAC.2016.2564339}.
+
+\bibitem{leny2014}
+J. Le Ny and G. J. Pappas, ``Differentially private filtering,'' \emph{IEEE Trans. Autom. Control}, vol. 59, no. 2, pp. 341--354, 2014, doi: \url{https://doi.org/10.1109/TAC.2013.2283096}.
+
+\bibitem{akyildiz2002}
+I. F. Akyildiz, W. Su, Y. Sankarasubramaniam, and E. Cayirci, ``Wireless sensor networks: a survey,'' \emph{Comput. Netw.}, vol. 38, no. 4, pp. 393--422, 2002, doi: \url{https://doi.org/10.1016/S1389-1286(01)00302-4}.
+
+\bibitem{katare2023approx_edge}
+D. Katare, D. Perino, J. Nurmi, M. Warnier, M. Janssen, and A. Y. Ding, ``A survey on approximate edge AI for energy efficient autonomous driving services,'' \emph{IEEE Commun. Surveys Tuts.}, vol. 25, no. 4, pp. 2714--2754, 2023, doi: \url{https://doi.org/10.1109/COMST.2023.3302474}.
+
+\bibitem{mao2023green_edge}
+Y. Mao, X. Yu, K. Huang, Y.-J. A. Zhang, and J. Zhang, ``Green edge AI: A contemporary survey,'' arXiv:2312.00333, 2023, doi: \url{https://doi.org/10.48550/arXiv.2312.00333}.
+
+\bibitem{asiedu2024iot_energy}
+D. K. P. Asiedu, K.-J. Lee, and J.-H. Yun, ``Energy-efficient routing, power control and energy clustering for energy harvesting-enabled spectrum sharing IoT sensor networks,'' \emph{Internet of Things}, vol. 25, p. 101122, 2024, doi: \url{https://doi.org/10.1016/j.iot.2024.101122}.
+
+\bibitem{strubell2019}
+E. Strubell, A. Ganesh, and A. McCallum, ``Energy and policy considerations for deep learning in NLP,'' in \emph{Proc. ACL}, 2019, pp. 3645--3650, doi: \url{https://doi.org/10.18653/v1/P19-1355}.
+
+\bibitem{patterson2021}
+D. Patterson et al., ``Carbon emissions and large neural network training,'' arXiv:2104.10350, 2021, doi: \url{https://doi.org/10.48550/arXiv.2104.10350}.
+
+\bibitem{kairouz2017}
+P. Kairouz, S. Oh, and P. Viswanath, ``The composition theorem for differential privacy,'' \emph{IEEE Trans. Inf. Theory}, vol. 63, no. 6, pp. 4037--4049, 2017, doi: \url{https://doi.org/10.1109/TIT.2017.2685505}.
+
+\bibitem{mironov2017}
+I. Mironov, ``Renyi differential privacy,'' in \emph{Proc. IEEE CSF}, 2017, pp. 263--275, doi: \url{https://doi.org/10.1109/CSF.2017.11}.
+
+\end{thebibliography}
+
+
+\end{document}

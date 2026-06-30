@@ -1,0 +1,35 @@
+manuscript: "E-PAS Sensors submission version"
+network_sizes: [50, 100, 200, 500]
+topologies:
+  erdos_renyi:
+    edge_probability: 0.3
+  watts_strogatz:
+    average_degree: 6
+    rewiring_probability: 0.1
+communication:
+  packet_loss_rates: [0.10, 0.20, 0.40]
+  delay_distribution: "Uniform(0, 300 ms)"
+privacy_budget:
+  epsilon_global: 1.0
+  mechanism_scope: "bounded value-channel target-budget calibration"
+  truncation_bound: "B = 3 sigma_max"
+  retained_mass_lower_bound: 0.997
+disturbance:
+  distribution: "Uniform(-0.01, 0.01)"
+event_triggering:
+  k_max: 20
+  target_trigger_rate: 0.1
+repetitions:
+  main_benchmark: 50
+  robustness: 50
+  scalability: 50
+  controlled_ablation: 8
+  parameter_sensitivity: 8
+platform:
+  python: "3.9"
+  numpy: "1.24"
+  networkx: "3.1"
+  scipy: "1.11"
+  cpu: "Intel Core i7-12700"
+  memory: "32 GB"
+scope_note: "Energy values are model-based simulation values, not hardware measurements."

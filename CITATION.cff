@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this reproducibility package, please cite the associated manuscript after publication."
+title: "E-PAS: A Privacy-Budget-Aware and Energy-Efficient State Synchronization Framework for Distributed IoT Sensor Networks"
+authors:
+  - family-names: Liu
+    given-names: Gang
+  - family-names: Zhang
+    given-names: Xin
+repository-code: "https://github.com/insistgang/epas-iot-sensor-sync"
+date-released: "2026-06-30"
+type: dataset

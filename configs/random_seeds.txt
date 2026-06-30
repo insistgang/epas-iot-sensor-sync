@@ -1,0 +1,7 @@
+Random-seed information
+
+The manuscript uses seed-paired comparisons for the main benchmark, robustness tests, and scalability cells.
+Controlled ablation and parameter-sensitivity scans use 8-repeat shared simulators.
+
+The complete raw seed list and raw simulation logs are available from the corresponding author upon reasonable request.
+Processed manuscript-level values are provided under data/processed/.

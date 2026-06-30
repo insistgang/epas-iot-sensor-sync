@@ -1,0 +1,54 @@
+\documentclass[tikz,border=4pt]{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\definecolor{EBlue}{HTML}{2F68B8}
+\definecolor{ENeutral}{HTML}{A7ADB5}
+\begin{groupplot}[
+  group style={group size=2 by 1, horizontal sep=1.45cm},
+  width=3.15in,
+  height=2.45in,
+  tick label style={font=\scriptsize},
+  label style={font=\small},
+  title style={font=\small\bfseries, at={(0,1.03)}, anchor=south west},
+  grid=major,
+  major grid style={draw=black!10},
+  axis line style={black!55},
+  tick style={black!55},
+  xtick={1,2,3,4,5},
+  xticklabels={Full E-PAS,w/o AR,w/o budget,w/o ACG,w/o dual},
+  xticklabel style={align=right, rotate=25, anchor=east},
+  enlarge x limits=0.12,
+]
+\nextgroupplot[
+  title={(a) Accuracy, controlled ablation},
+  ymode=log,
+  ymin=2e-4,
+  ymax=2e-2,
+  ylabel={Steady-state MSE},
+]
+  \addplot[only marks, mark=*, mark size=2.4pt, color=EBlue, mark options={fill=EBlue, draw=EBlue},
+    error bars/.cd, y dir=both, y explicit]
+    coordinates {(1,0.00036) +- (0,0.00004)};
+  \addplot[only marks, mark=square*, mark size=2.4pt, color=ENeutral, mark options={fill=ENeutral, draw=ENeutral},
+    error bars/.cd, y dir=both, y explicit]
+    coordinates {(2,0.01285) +- (0,0.0018) (3,0.00031) +- (0,0.00003)
+    (4,0.00033) +- (0,0.00004) (5,0.00032) +- (0,0.00004)};
+
+\nextgroupplot[
+  title={(b) Communication},
+  ybar,
+  bar width=10pt,
+  ymin=0,
+  ymax=7300,
+  ylabel={Communication count},
+  scaled y ticks=false,
+]
+  \addplot[ybar, bar shift=0pt, draw=none, fill=EBlue] coordinates {(1,1890)};
+  \addplot[ybar, bar shift=0pt, draw=none, fill=ENeutral]
+    coordinates {(2,6700) (3,1865) (4,1880) (5,1875)};
+\end{groupplot}
+\end{tikzpicture}
+\end{document}

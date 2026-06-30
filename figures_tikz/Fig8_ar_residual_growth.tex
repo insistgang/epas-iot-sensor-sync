@@ -1,0 +1,36 @@
+\documentclass[tikz,border=4pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\definecolor{EBlue}{HTML}{2F68B8}
+\begin{axis}[
+  width=4.8in,
+  height=3.15in,
+  xmin=1,
+  xmax=19,
+  ymin=0.015,
+  ymax=0.021,
+  xlabel={Silent prediction horizon (steps)},
+  ylabel={Mean absolute AR residual},
+  scaled y ticks=false,
+  ytick={0.015,0.016,0.017,0.018,0.019,0.020,0.021},
+  yticklabel style={/pgf/number format/fixed,/pgf/number format/precision=3},
+  tick label style={font=\small},
+  label style={font=\small},
+  legend style={font=\scriptsize, draw=black!15, fill=white, at={(0.98,0.98)}, anchor=north east},
+  grid=major,
+  major grid style={draw=black!10},
+  axis line style={black!55},
+  tick style={black!55},
+]
+  \addplot+[mark=*, very thick, color=EBlue] coordinates {
+    (1,0.0198) (2,0.0200) (3,0.0198) (4,0.0190) (5,0.0186)
+    (6,0.0182) (7,0.0179) (8,0.0176) (9,0.0174) (10,0.0172)
+    (11,0.0170) (12,0.0169) (13,0.0171) (14,0.0172) (15,0.0171)
+    (16,0.0168) (17,0.0165) (18,0.0162) (19,0.0160)
+  };
+  \addlegendentry{Measured mean}
+\end{axis}
+\end{tikzpicture}
+\end{document}

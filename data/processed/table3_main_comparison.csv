@@ -1,0 +1,5 @@
+method,privacy_mse_mean,privacy_mse_sd,communication_count_mean,communication_count_sd,relative_energy,loss_40pct_mse
+Periodic,3.70e-3,2.3e-4,15000,,1.000,6.4e-3
+Standard ET,5.04e-3,5.0e-4,6814,239,0.454,8.7e-3
+Privacy-aware,2.06e-3,1.3e-4,12863,51,0.858,4.5e-3
+E-PAS,1.43e-4,1.2e-5,1218,10,0.088,2.9e-4

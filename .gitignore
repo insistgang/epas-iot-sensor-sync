@@ -1,0 +1,10 @@
+.DS_Store
+._*
+__MACOSX/
+.venv/
+figures_polished/
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
