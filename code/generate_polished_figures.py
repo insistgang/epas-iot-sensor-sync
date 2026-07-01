@@ -197,7 +197,7 @@ b_mse = np.array([0.000245,0.000270,0.000310,0.000370])
 b_comm = np.array([1845,1875,1888,1890])
 series = [
     (p,p_mse,p_comm,'(a) Predictor order $p$','AR order $p$'),
-    (rho,r_mse,r_comm,'(b) Budget step $\\rho$','Budget step $\\rho$'),
+    (rho,r_mse,r_comm,'(b) Budget step $\\rho_b$','Budget step $\\rho_b$'),
     (K,k_mse,k_comm,'(c) Timeout $K_{max}$','Timeout $K_{max}$'),
     (B,b_mse,b_comm,'(d) Truncation bound $B$','Truncation bound $B$'),
 ]
@@ -229,8 +229,8 @@ axs[0].set_xlabel('Predictor order $p$')
 axs[0].set_ylabel('Steady-state MSE')
 axs[0].grid(True,linestyle='--',alpha=0.28)
 axs[1].plot(rho,r_mse,'o-',color=GREEN,lw=1.8,ms=5)
-axs[1].set_title('(b) Budget step $\\rho$ scan',loc='left',fontweight='bold')
-axs[1].set_xlabel('Budget step size $\\rho$')
+axs[1].set_title('(b) Budget step $\\rho_b$ scan',loc='left',fontweight='bold')
+axs[1].set_xlabel('Budget step size $\\rho_b$')
 axs[1].set_ylabel('Steady-state MSE')
 axs[1].grid(True,linestyle='--',alpha=0.28)
 for ax in axs:
